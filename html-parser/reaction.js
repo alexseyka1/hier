@@ -1,3 +1,7 @@
+/**
+ * @param {Function} callable
+ * @returns {string[]}
+ */
 const getFunctionParamNames = (callable) => {
   if (typeof callable !== "function") throw new Error("Specified argument is not a function.")
 
@@ -56,15 +60,37 @@ class Reaction {
 
         const paramNames = getFunctionParamNames(component.render)
         if (paramNames.includes("props")) {
+          /** If render function require props object */
           rendered = component.render(component.props || {})
         } else {
           rendered = component.render()
         }
 
-        if (rendered && rendered instanceof HTMLElement) {
+        if (rendered) {
+          if (!(rendered instanceof HTMLElement)) {
+            rendered = document.createTextNode(rendered)
+          }
+
+          /** Append children to rendered html element */
+          const children = component.props.children
+          delete component.props.children
+          if (children && Array.isArray(children)) {
+            if (rendered instanceof Text) {
+              const textWrapper = document.createElement("div")
+              textWrapper.appendChild(rendered)
+              rendered = textWrapper
+            }
+
+            mapPropsToElement(rendered, component.props)
+            this._appendComponents(children, rendered)
+          }
+
           rootNode.appendChild(rendered)
         }
       } else if (component instanceof Token) {
+        /**
+         * HTMLElement append to root node
+         */
         const children = component.children || []
         component.children = []
         const element = createDomElement(component)
@@ -106,8 +132,8 @@ class Reaction {
            */
           let component
           if (typeof tokenEval === "function") {
-            if (tokenEval instanceof ReactionComponent) {
-              component = tokenEval
+            if (/^class *\w+.*{/.test(tokenEval)) {
+              component = new tokenEval(token.props)
             } else {
               component = new ReactionComponent(token.props)
               component.render = tokenEval

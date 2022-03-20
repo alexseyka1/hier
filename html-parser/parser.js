@@ -43,11 +43,15 @@ const jsx = (splits, ...values) => {
   const root = parseString(splits.join(PLACEHOLDER), values)
 
   if (Array.isArray(root)) {
-    const wrapper = createDomElement(new TokenElement("div"))
-    root.map((item) => {
-      wrapper.appendChild(createDomElement(item))
-    })
-    return wrapper
+    if (root.length > 1) {
+      const wrapper = createDomElement(new TokenElement("div"))
+      root.map((item) => {
+        wrapper.appendChild(createDomElement(item))
+      })
+      return wrapper
+    } else {
+      return createDomElement(root.shift())
+    }
   } else {
     return createDomElement(root)
   }
@@ -133,7 +137,10 @@ const parseString = (str, values) => {
 
             const elementToken = new TokenElement(tokenTagName)
             insertElementToTree(elementToken)
-            openedTagsStack.push(elementToken)
+
+            if (!["br", "hr"].includes(tokenTagName)) {
+              openedTagsStack.push(elementToken)
+            }
             charStack = []
           }
 
@@ -144,7 +151,9 @@ const parseString = (str, values) => {
           }
         } else if (char === "/") {
           /** Closing tag */
-          state = STATES.tagClose
+          if (chars[cursor - 1] === "<") {
+            state = STATES.tagClose
+          }
         } else {
           charStack.push(char)
         }

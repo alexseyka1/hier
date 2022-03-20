@@ -3,8 +3,18 @@
 console.time()
 
 const username = "alexseyka1"
+
+class CoolComponent extends ReactionComponent {
+  constructor(props) {
+    super(props)
+  }
+  render() {
+    return jsx`<div>Hello, from coolest component is the world (and i have some children ;D)!</div>`
+  }
+}
+
 const SayHello = (props) => {
-  console.log(this)
+  //   console.log(this)
   return jsx`<span>Hello, ${props.name || "Dolly"}!</span>`
 }
 const componentName = "SayHello"
@@ -18,10 +28,19 @@ const TestApp = () => {
 
   return ast`
     Test application
-    
-    <fieldset>
-        <SayHello name="${username}" obj=${testObj}/>
-    </fieldset>
+    <hr/>
+    <CoolComponent say="olololo" style="border: 1px solid red">
+        <ul>
+            <li>First</li>
+            <li>Second</li>
+            <li>And third</li>
+        </ul>
+        <strong>And bold text</strong>
+        <fieldset class="say-hello">
+            <SayHello name="${username}" obj=${testObj}/>
+        </fieldset>
+    </CoolComponent>
+    <hr>
 
     <fieldset>
       <legend>Test input</legend>
