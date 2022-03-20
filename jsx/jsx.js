@@ -9,7 +9,7 @@ const jsx = (splits, ...values) => {
   /** Get root AST */
   const root = parseElement(splits.join(PLACEHOLDER), values)
 
-  console.log(root)
+  //   console.log(root)
 
   return createDomElement(root)
 }
@@ -56,13 +56,12 @@ const parseElement = (str, values) => {
     name: "",
   }
 
-  str = str.replace(/\s+/, " ").replace("\n", "").trim()
+  str = str.replace(/\n/, "").replace(/\s+/g, " ").replace(/>\s+</g, "><").trim()
 
   /**
    * Let's try to find out the tag name
    */
   match = str.match(/<(\w+)/)
-  console.log({ str, match })
   if (!match) {
     /** If tag opener was not found - the current code is a value */
     str = str.split("<")[0]
@@ -92,7 +91,6 @@ const parseElement = (str, values) => {
    * Current element is self closing or not ?
    */
   match = str.match(/^ *\/ *>/)
-
   if (match) {
     node.length += match.index + match[0].length
 
@@ -104,16 +102,24 @@ const parseElement = (str, values) => {
 
   if (!match) return node
 
+  /** Cut the tag closer ">" */
   length = match.index + 1
-  str = str.slice(length)
+  str = str.slice(length).trim()
   node.length += length
+
+  /**
+   * TODO Может здесь нужно сразу и закрывающий удалять из конца строки?
+   * Или может нужно при нахождении открытия тега (и если он не самозакрывающийся) то добавлять имя тега в стек
+   * чтобы потом по стеку назад возвращаться?
+   */
 
   /**
    * Then let's parse children elements
    */
   let children = []
   const parseNextChildren = () => {
-    children = [].concat(parseElement(str, values))
+    const foundedChildren = parseElement(str, values)
+    children = [].concat(foundedChildren)
   }
   parseNextChildren()
 

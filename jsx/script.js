@@ -1,31 +1,15 @@
 "use strict"
 
-const username = "Dolly"
-const textFunction = () => alert("It works!")
-
-const rendered = jsx`<div class="wra pper" id='my-test-app' test="now">
-  <div class='inner' id='my-tinner'>
-      <span class="username">${username}</span>
-      <button onclick=${textFunction} id="test">Click!</button>
-  </div>
-</div>`
-
-const pre = document.createElement("pre")
-pre.innerText = rendered.outerHTML
-document.querySelector("#app").appendChild(pre)
-
-// document.querySelector("#app").appendChild(rendered)
-
-// const rendered = jsx`<div>
-//     <div>
-//       <SayHello name={"Dolly"} />
-//     </div>
-//     <div>My number is: {num}</div>
-//     <div>
-//       <button onClick={() => increment()}>Increment +</button>
-//       <button onClick={() => decrement()}>Decrement -</button>
-//     </div>
-//   </div>`
+const rendered = jsx`<div>
+    <div>
+      <SayHello name={"Dolly"} />
+    </div>
+    <div>My number is: {num}</div>
+    <div>
+      <button onClick={() => increment()}>Increment +</button>
+      <button onClick={() => decrement()}>Decrement -</button>
+    </div>
+  </div>`
 
 //////////////////////////////////////////////////////////////////////
 
