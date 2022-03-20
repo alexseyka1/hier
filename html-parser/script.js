@@ -3,7 +3,8 @@
 console.time()
 
 const username = "alexseyka1"
-const SayHello = function (props = [], username = null, test) {
+const SayHello = (props) => {
+  console.log(this)
   return jsx`<span>Hello, ${props.name || "Dolly"}!</span>`
 }
 const componentName = "SayHello"

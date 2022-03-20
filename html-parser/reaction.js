@@ -1,3 +1,22 @@
+const getFunctionParamNames = (callable) => {
+  if (typeof callable !== "function") throw new Error("Specified argument is not a function.")
+
+  const renderFuncSign = callable.toString()
+  const match = renderFuncSign.match(/^(?:function\s*)?\((.*)\)/)
+
+  if (!match) return []
+
+  const paramsString = match[1].trim()
+  const paramsList = paramsString.split(/,\s*/)
+  return paramsList.reduce((res, item) => {
+    const match = item.match(/^\w+\b/)
+    if (match) {
+      res.push(match[0])
+    }
+    return res
+  }, [])
+}
+
 class Reaction {
   /**
    * @param {Function} component
@@ -23,6 +42,10 @@ class Reaction {
     this._appendComponents(components, rootNode)
   }
 
+  /**
+   * @param {Token[]|ReactionComponent[]} componentsList
+   * @param {HTMLElement} rootNode
+   */
   static _appendComponents(componentsList, rootNode) {
     componentsList.map((component) => {
       if (component instanceof ReactionComponent) {
@@ -30,25 +53,12 @@ class Reaction {
          * Render Reaction component
          */
         let rendered
-        const renderFuncSign = component.render.toString()
-        const match = renderFuncSign.match(/^(?:function\s*)?\((.*)\)/)
 
-        if (match) {
-          const paramsString = `props = [], username = null,test` // match[1].trim()
-          const paramsList = paramsString.split(/,\s*/)
-          const paramsNames = paramsList.reduce((res, item) => {
-            const match = item.match(/^\w+\b/)
-            if (match) {
-              res.push(match[0])
-            }
-            return res
-          }, [])
-
-          if (paramsNames.includes("props")) {
-            rendered = component.render(component.props || {})
-          } else {
-            rendered = component.render()
-          }
+        const paramNames = getFunctionParamNames(component.render)
+        if (paramNames.includes("props")) {
+          rendered = component.render(component.props || {})
+        } else {
+          rendered = component.render()
         }
 
         if (rendered && rendered instanceof HTMLElement) {
@@ -67,6 +77,10 @@ class Reaction {
     })
   }
 
+  /**
+   * @param {Token[]} ast
+   * @returns {ReactionComponent[]}
+   */
   static _astToComponentsList(ast) {
     const componentsTree = []
 
