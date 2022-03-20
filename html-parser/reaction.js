@@ -1,0 +1,138 @@
+class Reaction {
+  /**
+   * @param {Function} component
+   * @param {HTMLElement} rootNode
+   */
+  static render(component, rootNode) {
+    if (!(rootNode instanceof HTMLElement)) {
+      throw new Error("Please specify correct rootNode.")
+    }
+
+    let componentToRender
+
+    if (typeof component === "function") {
+      componentToRender = new ReactionComponent()
+      componentToRender.render = component
+    } else {
+      throw new Error("Not implemented yet.")
+    }
+
+    if (!(componentToRender instanceof ReactionComponent)) throw new Error("Fail to render component.")
+
+    const components = this._astToComponentsList(componentToRender.render())
+    this._appendComponents(components, rootNode)
+  }
+
+  static _appendComponents(componentsList, rootNode) {
+    componentsList.map((component) => {
+      if (component instanceof ReactionComponent) {
+        /**
+         * Render Reaction component
+         */
+        let rendered
+        const renderFuncSign = component.render.toString()
+        const match = renderFuncSign.match(/^(?:function\s*)?\((.*)\)/)
+
+        if (match) {
+          const paramsString = `props = [], username = null,test` // match[1].trim()
+          const paramsList = paramsString.split(/,\s*/)
+          const paramsNames = paramsList.reduce((res, item) => {
+            const match = item.match(/^\w+\b/)
+            if (match) {
+              res.push(match[0])
+            }
+            return res
+          }, [])
+
+          if (paramsNames.includes("props")) {
+            rendered = component.render(component.props || {})
+          } else {
+            rendered = component.render()
+          }
+        }
+
+        if (rendered && rendered instanceof HTMLElement) {
+          rootNode.appendChild(rendered)
+        }
+      } else if (component instanceof Token) {
+        const children = component.children || []
+        component.children = []
+        const element = createDomElement(component)
+        rootNode.appendChild(element)
+
+        if (children.length) {
+          this._appendComponents(children, element)
+        }
+      }
+    })
+  }
+
+  static _astToComponentsList(ast) {
+    const componentsTree = []
+
+    const proceedToken = (token) => {
+      if (token instanceof TokenElement) {
+        let children
+        if (token.children.length) {
+          children = token.children.map((child, index) => {
+            const _proceeded = proceedToken(child)
+            /** Replace Token to ReactionComponent */
+            token.children[index] = _proceeded
+            return _proceeded
+          })
+        }
+
+        const tokenName = token.name
+
+        if (/[A-Z]/.test(tokenName[0])) {
+          const tokenEval = eval(tokenName)
+
+          /**
+           * We found our component or function-component
+           */
+          let component
+          if (typeof tokenEval === "function") {
+            if (tokenEval instanceof ReactionComponent) {
+              component = tokenEval
+            } else {
+              component = new ReactionComponent(token.props)
+              component.render = tokenEval
+            }
+          }
+
+          if (component) {
+            if (children) {
+              component.props.children = children
+            }
+
+            return component
+          }
+        }
+      }
+
+      return token
+    }
+
+    if (Array.isArray(ast)) {
+      ast.map((token) => componentsTree.push(proceedToken(token)))
+    } else {
+      componentsTree.push(proceedToken(token))
+    }
+
+    return componentsTree
+  }
+}
+
+/**
+ * Base Reaction component
+ */
+class ReactionComponent {
+  constructor(props) {
+    if (props && typeof props !== "object") throw new Error("Please specify correct props object.")
+    this.props = props || {}
+  }
+
+  render() {
+    return null
+  }
+}

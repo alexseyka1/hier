@@ -34,6 +34,10 @@ class TokenValue extends Token {
   }
 }
 
+const ast = (splits, ...values) => {
+  return parseString(splits.join(PLACEHOLDER), values)
+}
+
 const jsx = (splits, ...values) => {
   /** Get root AST */
   const root = parseString(splits.join(PLACEHOLDER), values)
@@ -57,7 +61,7 @@ const createDomElement = (node) => {
   const element = document.createElement(node.name)
   mapPropsToElement(element, node.props)
 
-  if (node.children.length) {
+  if (node.children && Array.isArray(node.children) && node.children.length) {
     node.children.map((child) => {
       let childElement = createDomElement(child)
       if (typeof childElement === "string") {
@@ -122,7 +126,12 @@ const parseString = (str, values) => {
         if ([">", " "].includes(char)) {
           /** Push new element-token to stack */
           if (charStack.length) {
-            const elementToken = new TokenElement(charStack.join(""))
+            let tokenTagName = charStack.join("")
+            if (tokenTagName === PLACEHOLDER) {
+              tokenTagName = values.shift()
+            }
+
+            const elementToken = new TokenElement(tokenTagName)
             insertElementToTree(elementToken)
             openedTagsStack.push(elementToken)
             charStack = []
