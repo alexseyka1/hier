@@ -124,7 +124,6 @@ const parseString = (str, values) => {
           if (charStack.length) {
             const elementToken = new TokenElement(charStack.join(""))
             insertElementToTree(elementToken)
-
             openedTagsStack.push(elementToken)
             charStack = []
           }
@@ -149,12 +148,16 @@ const parseString = (str, values) => {
           lastOpenedTag.props = parseProps(charStack.join(""), values)
           charStack = []
 
+          const prevChar = chars[cursor - 1]
+          if (prevChar === "/") {
+            openedTagsStack.pop()
+          }
+
           state = STATES.data
-        } else if (char !== "/") {
-          charStack.push(char)
-        } else {
+        } else if (char === "/") {
           /** Self-closing tag */
-          openedTagsStack.pop()
+        } else {
+          charStack.push(char)
         }
         break
 
@@ -196,7 +199,7 @@ const parseProps = (str, values) => {
     key = key.trim()
 
     value = value.join("=")
-    if (value === PLACEHOLDER) {
+    if (value.match(new RegExp(`["']?${PLACEHOLDER}["']?`))) {
       value = values.shift()
     } else {
       value = value ? value.slice(1, -1) : true
