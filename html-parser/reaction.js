@@ -73,7 +73,7 @@ class Reaction {
 
           /** Append children to rendered html element */
           const children = component.props.children
-          delete component.props.children
+          //   delete component.props.children
           if (children && Array.isArray(children)) {
             if (rendered instanceof Text) {
               const textWrapper = document.createElement("div")
@@ -81,7 +81,9 @@ class Reaction {
               rendered = textWrapper
             }
 
+            /** Mapping tag attributes */
             mapPropsToElement(rendered, component.props)
+
             this._appendComponents(children, rendered)
           }
 
@@ -167,9 +169,25 @@ class Reaction {
  * Base Reaction component
  */
 class ReactionComponent {
+  state = {}
   constructor(props) {
     if (props && typeof props !== "object") throw new Error("Please specify correct props object.")
     this.props = props || {}
+  }
+
+  /**
+   * @param {object} obj
+   */
+  setState(obj) {
+    const prevState = this.state,
+      newState = Object.assign({}, prevState || {}, obj)
+
+    if (prevState == newState) {
+      return
+    }
+
+    this.state = newState
+    console.log({ prevState: JSON.stringify(prevState), newState: JSON.stringify(newState) })
   }
 
   render() {

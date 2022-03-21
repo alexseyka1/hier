@@ -14,27 +14,21 @@ class CoolComponent extends ReactionComponent {
 }
 
 const SayHello = (props) => {
-  //   console.log(this)
   return jsx`<span>Hello, ${props.name || "Dolly"}!</span>`
 }
 const componentName = "SayHello"
 const testObj = { hello: "Dolly", num: 123.45 }
 
-const TestApp = () => {
-  const hello = () => {
-    document.querySelector("#myInput").value = Intl.DateTimeFormat("ru").format(new Date())
-    alert("Hello, amigo!")
+const TestApp = function () {
+  const setCurrentDate = () => {
+    document.querySelector("#myInput").value = Date.now()
   }
+
+  const { text } = this.state
 
   return ast`
     Test application
-    <hr/>
     <CoolComponent say="olololo" style="border: 1px solid red">
-        <ul>
-            <li>First</li>
-            <li>Second</li>
-            <li>And third</li>
-        </ul>
         <strong>And bold text</strong>
         <fieldset class="say-hello">
             <SayHello name="${username}" obj=${testObj}/>
@@ -44,17 +38,19 @@ const TestApp = () => {
 
     <fieldset>
       <legend>Test input</legend>
-      <input type="text" id="myInput" placeholder="Some text" />
+      <input type="text" id="myInput" placeholder="Some text" 
+        onChange=${(e) => this.setState({ text: e.target.value })} 
+      />
     </fieldset>
 
     <fieldset>
       <legend>Set Current Date</legend>
-      <button onClick="${() => hello()}">Set Current Date</button>
+      <button onClick="${() => setCurrentDate()}">Set Current Date</button>
     </fieldset>
 
     <fieldset disabled="disabled">
       <legend>Output</legend>
-      <div id="output"></div>
+      <strong>${text || ""}</strong>
     </fieldset>
   `
 }

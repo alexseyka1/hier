@@ -84,6 +84,17 @@ const mapPropsToElement = (element, props) => {
 
   Object.entries(props).map(([prop, value]) => {
     if (prop == "class") prop = "className"
+
+    /** On changing inputs */
+    if (
+      prop.toLocaleLowerCase() === "onchange" &&
+      ["input", "textarea", "select"].includes(element.tagName.toLowerCase())
+    ) {
+      ;["onkeyup", "onkeypress", "onpaste", "oncut"].map((item) => {
+        element[item] = value
+      })
+    }
+
     element[prop] = value
   })
 }
