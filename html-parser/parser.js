@@ -40,7 +40,7 @@ const ast = (splits, ...values) => {
 
 const jsx = (splits, ...values) => {
   /** Get root AST */
-  const root = parseString(splits.join(PLACEHOLDER), values)
+  const root = ast(splits, ...values)
 
   if (Array.isArray(root)) {
     if (root.length > 1) {
@@ -90,9 +90,8 @@ const mapPropsToElement = (element, props) => {
       prop.toLocaleLowerCase() === "onchange" &&
       ["input", "textarea", "select"].includes(element.tagName.toLowerCase())
     ) {
-      ;["onkeyup", "onkeypress", "onpaste", "oncut"].map((item) => {
-        element[item] = value
-      })
+      element["oninput"] = value
+      return
     }
 
     element[prop] = value
@@ -248,7 +247,12 @@ const parseProps = (str, values) => {
 const parseValue = (str, values) => {
   while (str.match(new RegExp(PLACEHOLDER))) {
     value = values.shift()
-    str = str.replace(new RegExp(PLACEHOLDER), value)
+
+    if ([null, undefined, ""].includes(value) || !value) {
+      str = str.replace(new RegExp(PLACEHOLDER), "")
+    } else {
+      str = str.replace(new RegExp(PLACEHOLDER), value)
+    }
   }
 
   return str
