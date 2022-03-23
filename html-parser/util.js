@@ -16,9 +16,18 @@ const Util = {
     }
   },
 
+  getUniqId: () => Math.random().toString(16).slice(2),
+
   getIsClass: function (callable) {
     if (typeof callable !== "function") return false
     return /^class *\w+.*{/.test(callable)
+  },
+
+  getStringHex: function (str) {
+    return str
+      .split("")
+      .map((char) => ("000" + char.charCodeAt(0).toString(16)).slice(-4))
+      .join("")
   },
 
   /**

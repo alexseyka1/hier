@@ -19,7 +19,19 @@ const SayHello = (props) => {
 const componentName = "SayHello"
 const testObj = { hello: "Dolly", num: 123.45 }
 
-class TestApp extends ReactionComponent {
+const TestApp = () => {
+  return ast`
+    Test application
+    <CoolComponent say="olololo" style="border: 1px solid red">
+        <strong>Some bold text</strong>
+        <fieldset class="say-hello">
+            <SayHello name="${username}" obj=${testObj}/>
+        </fieldset>
+    </CoolComponent>
+  `
+}
+
+class App extends ReactionComponent {
   render() {
     const setCurrentDate = () => {
       document.querySelector("#myInput").value = Date.now()
@@ -34,13 +46,8 @@ class TestApp extends ReactionComponent {
         }
       </style>
 
-      Test application
-      <CoolComponent say="olololo" style="border: 1px solid red">
-          <strong>Some bold text</strong>
-          <fieldset class="say-hello">
-              <SayHello name="${username}" obj=${testObj}/>
-          </fieldset>
-      </CoolComponent>
+      <TestApp />
+
       <hr>
 
       <fieldset>
@@ -66,6 +73,6 @@ class TestApp extends ReactionComponent {
   }
 }
 
-Reaction.render(TestApp, document.querySelector("#app"))
+Reaction.render(App, document.querySelector("#app"))
 
 console.timeEnd("All app")

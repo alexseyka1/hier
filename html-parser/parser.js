@@ -116,20 +116,25 @@ const parseString = (str, values) => {
     }
   }
 
+  const insertValue = () => {
+    if (charStack.length) {
+      const value = parseValue(charStack.join("").trim(), values)
+
+      if (value.length) {
+        const valueToken = new TokenValue(value)
+        insertElementToTree(valueToken)
+      }
+      charStack = []
+    }
+  }
+
   chars.map((char, cursor) => {
     switch (state) {
       case STATES.data:
         /** Push characters to stack before meeting start tag symbol */
         if (char === "<") {
           /** Push new value-token to stack */
-          if (charStack.length) {
-            const value = parseValue(charStack.join("").trim(), values)
-            if (value.length) {
-              const valueToken = new TokenValue(value)
-              insertElementToTree(valueToken)
-            }
-            charStack = []
-          }
+          insertValue()
           state = STATES.tagName
         } else {
           charStack.push(char)
@@ -137,22 +142,24 @@ const parseString = (str, values) => {
         break
 
       case STATES.tagName:
+        const pushElementToStack = () => {
+          let tokenTagName = charStack.join("")
+          if (tokenTagName === PLACEHOLDER) {
+            tokenTagName = values.shift()
+          }
+
+          const elementToken = new TokenElement(tokenTagName)
+          insertElementToTree(elementToken)
+
+          if (!["br", "hr"].includes(tokenTagName)) {
+            openedTagsStack.push(elementToken)
+          }
+          charStack = []
+        }
+
         if ([">", " "].includes(char)) {
           /** Push new element-token to stack */
-          if (charStack.length) {
-            let tokenTagName = charStack.join("")
-            if (tokenTagName === PLACEHOLDER) {
-              tokenTagName = values.shift()
-            }
-
-            const elementToken = new TokenElement(tokenTagName)
-            insertElementToTree(elementToken)
-
-            if (!["br", "hr"].includes(tokenTagName)) {
-              openedTagsStack.push(elementToken)
-            }
-            charStack = []
-          }
+          if (charStack.length) pushElementToStack()
 
           if (char === ">") {
             state = STATES.data
@@ -176,8 +183,7 @@ const parseString = (str, values) => {
           lastOpenedTag.props = parseProps(charStack.join(""), values)
           charStack = []
 
-          const prevChar = chars[cursor - 1]
-          if (prevChar === "/") {
+          if (chars[cursor - 1] === "/") {
             openedTagsStack.pop()
           }
 
@@ -198,6 +204,7 @@ const parseString = (str, values) => {
     }
   })
 
+  if (state === STATES.data) insertValue()
   return tokensStack
 }
 
@@ -256,4 +263,9 @@ const parseValue = (str, values) => {
   }
 
   return str
+}
+
+const JsxParser = {
+  ast,
+  jsx,
 }
