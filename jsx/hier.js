@@ -1,4 +1,6 @@
 const Hier = (function () {
+  const EVENT_RERENDER = "rerender"
+
   /**
    * HIER RENDERER
    */
@@ -23,6 +25,37 @@ const Hier = (function () {
     },
 
     /**
+     * Create components from AST if needed
+     */
+    createHierComponents(ast) {
+      if (!ast) return []
+      const response = []
+      ast.map((astObj) => {
+        if (typeof astObj === "object" && astObj.hasOwnProperty("tagName")) {
+          /** Hier component found */
+          if (Util.getIsClass(astObj.tagName)) {
+            const props = Util.cloneObject(astObj.props)
+            if (astObj.children) {
+              props.children = Hier.createHierComponents(astObj.children)
+            }
+
+            const hierComponent = new astObj.tagName(props)
+            hierComponent.render().map((nestedItem) => {
+              response.push(nestedItem)
+            })
+          } else if (astObj.children) {
+            /** Hier component NOT found - common tag */
+            astObj.children = this.createHierComponents(astObj.children)
+          }
+        }
+        /** Just text */
+        response.push(astObj)
+      })
+
+      return response
+    },
+
+    /**
      * Renders root application component
      * @param {*} className
      * @param {*} rootNode
@@ -30,36 +63,26 @@ const Hier = (function () {
     render(className, rootNode) {
       const rootComponent = new className()
 
-      /**
-       * Create components from AST if needed
-       */
-      const createHierComponents = (ast) => {
-        const response = []
-        ast.map((astObj) => {
-          if (typeof astObj === "object" && astObj.hasOwnProperty("tagName")) {
-            /** Hier component found */
-            if (Util.getIsClass(astObj.tagName)) {
-              const hierComponent = new astObj.tagName(astObj.props || {})
-              createHierComponents(hierComponent.render()).map((nestedItem) => response.push(nestedItem))
-            } else if (astObj.children) {
-              /** Hier component NOT found - common tag */
-              astObj.children = createHierComponents(astObj.children)
-            }
-          }
-          /** Just text */
-          response.push(astObj)
-        })
-
-        return response
-      }
-
-      const components = createHierComponents(rootComponent.render())
+      const components = Hier.createHierComponents(rootComponent.render())
       const rendered = components.map((item) => HierParser.createElementFromAstObject(item))
       rendered.map((element) => element && rootNode.appendChild(element))
     },
   }
 
   const Util = {
+    cloneObject: function (obj) {
+      const newObj = Object.assign({}, obj || {})
+      Object.entries(newObj).map(([key, value]) => {
+        if (Array.isArray(value)) {
+          newObj[key] = [...value]
+        } else if (typeof value !== "object") {
+          newObj[key] = value
+        } else {
+          newObj[key] = Util.cloneObject(value)
+        }
+      })
+      return newObj
+    },
     getIsClass: function (callable) {
       if (typeof callable !== "function") return false
       return /^class *\w+.*{/.test(callable)
@@ -76,6 +99,11 @@ const Hier = (function () {
       return HierParser.parseString(splits.join(HierParser.PLACEHOLDER), values)
     },
 
+    html(splits, ...values) {
+      const ast = HierParser.ast(splits, ...values)
+      return ast.map((item) => HierParser.createElementFromAstObject(item)).filter((item) => item)
+    },
+
     createElementFromAstObject(astObject) {
       const createElement = (item) => {
         if (typeof item === "object") {
@@ -90,11 +118,6 @@ const Hier = (function () {
       }
 
       return createElement(astObject)
-    },
-
-    html(splits, ...values) {
-      const ast = HierParser.ast(splits, ...values)
-      return ast.map((item) => HierParser.createElementFromAstObject(item)).filter((item) => item)
     },
 
     /**
@@ -137,9 +160,18 @@ const Hier = (function () {
           case STATES.data:
             const dataMatched = str.match(/^[^<]+/)
             if (dataMatched) {
-              const value = HierParser.parseValue(dataMatched[0].trim(), values)
+              const text = dataMatched[0].replace(/\n/, "").replace(/\s+/, " ")
+              if (values.length) {
+                values.map((item, index) => {
+                  if (Array.isArray(item) && item.some((item) => item.hasOwnProperty("tagName"))) {
+                    item.map((nestedItem) => insertElementToTree(nestedItem))
+                    values[index] = null
+                  }
+                })
+              }
+              const value = HierParser.parseValue(text, values)
 
-              if (value.length) {
+              if (value.trim().length) {
                 insertElementToTree(value)
               }
               str = str.slice(dataMatched.index + dataMatched[0].length)
@@ -215,12 +247,7 @@ const Hier = (function () {
     },
 
     parseTagName(str, values) {
-      if (str.match(new RegExp(HierParser.PLACEHOLDER))) {
-        const value = values.shift()
-
-        return value
-      }
-
+      if (str.match(new RegExp(HierParser.PLACEHOLDER))) return values.shift()
       return str
     },
 

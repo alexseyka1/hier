@@ -1,57 +1,78 @@
 "use strict"
 
-/**
- *
- */
 console.time()
 const { html, Component, BaseComponent } = Hier
 
-class UserName extends BaseComponent {
+class OrangeBg extends BaseComponent {
   render() {
-    return html`<span class="username">${this.props.name}</span>`
+    return html`<div style="background-color: orange">${this.props.children}</div>`
+  }
+}
+
+class FullName extends BaseComponent {
+  render() {
+    const fullName = `${this.props.firstName || ""} ${this.props.LastName || ""}`.trim()
+    return html`<strong class="fullname">${fullName || "(noname)"}</strong>`
   }
 }
 
 class Hello extends BaseComponent {
   render() {
-    return html`Hello, <${UserName} name=${this.props.name || "(noname)"} />`
+    return html`Welcome to my test, <${FullName} name=${this.props.name} />`
+  }
+}
+
+class Dynamic extends Component {
+  render() {
+    const { firstName, lastName } = this.state
+    const setFirstName = (e) => this.setState({ firstName: e.target.value })
+    const setLastName = (e) => this.setState({ lastName: e.target.value })
+
+    return html`
+      <div>
+        <input type="text" placeholder="First Name" onInput=${setFirstName} />
+        <input type="text" placeholder="Last Name" onInput=${setLastName} />
+      </div>
+
+      <fieldset>
+        <legend>Resume</legend>
+        <${Hello} firstName=${firstName} lastName=${lastName} />
+      </fieldset>
+    `
+  }
+}
+
+class Fieldset extends BaseComponent {
+  render() {
+    const legend = this.props.legend ? html`<legend>${this.props.legend}</legend>` : ""
+    return html`<fieldset>${legend} ${this.props.children}</fieldset>`
   }
 }
 
 class App extends Component {
   render() {
     const buttonText = `Lets register!`
-    const setFirstName = (e) => this.setState({ firstName: e.target.value })
-    const setLastName = (e) => this.setState({ lastName: e.target.value })
     const clickButton = () => alert("Okay, lets go!")
+    const inner = html`<main>
+      <${Dynamic} />
+    </main>`
 
     return html`Before Application Test
-
-      <div>Yo 1: <${Hello} /></div>
-      Yo 2: <${Hello} />
-
+      <hr />
       <form action="/some/cool/url" method="post">
-        <fieldset>
-          <legend>Register Form</legend>
-          <main>
-            <div>
-              <input type="text" placeholder="First Name" onInput=${setFirstName} />
-              <input type="text" placeholder="Last Name" onInput=${setLastName} />
-            </div>
-
-            <div>
-              <label>
-                Age:
-                <input type="number" placeholder="Age" min="0" />
-              </label>
-            </div>
-          </main>
+        <${Fieldset} legend="Register Form">
+          <${OrangeBg}>
+            <main>
+              <${Dynamic} />
+            </main>
+          </OrangeBg>
 
           <footer>
             <button type="button" onClick=${clickButton}>${buttonText}</button>
           </footer>
         </fieldset>
       </form>
+      <hr />
       After Application Text`
   }
 }
