@@ -29,30 +29,27 @@ const Hier = (function () {
      */
     createHierComponents(ast) {
       if (!ast) return []
-      const response = []
-      ast.map((astObj) => {
+      return ast.reduce((response, astObj) => {
         if (typeof astObj === "object" && astObj.hasOwnProperty("tagName")) {
           /** Hier component found */
           if (Util.getIsClass(astObj.tagName)) {
             const props = Util.cloneObject(astObj.props)
             if (astObj.children) {
-              props.children = Hier.createHierComponents(astObj.children)
+              props.children = astObj.children
             }
-
             const hierComponent = new astObj.tagName(props)
-            hierComponent.render().map((nestedItem) => {
-              response.push(nestedItem)
-            })
+            const componentRendered = hierComponent.render()
+            Hier.createHierComponents(componentRendered).map((nestedItem) => response.push(nestedItem))
           } else if (astObj.children) {
             /** Hier component NOT found - common tag */
-            astObj.children = this.createHierComponents(astObj.children)
+            astObj.children = Hier.createHierComponents(astObj.children)
           }
         }
         /** Just text */
         response.push(astObj)
-      })
 
-      return response
+        return response
+      }, [])
     },
 
     /**
@@ -63,7 +60,8 @@ const Hier = (function () {
     render(className, rootNode) {
       const rootComponent = new className()
 
-      const components = Hier.createHierComponents(rootComponent.render())
+      const ast = rootComponent.render()
+      const components = Hier.createHierComponents(ast)
       const rendered = components.map((item) => HierParser.createElementFromAstObject(item))
       rendered.map((element) => element && rootNode.appendChild(element))
     },
@@ -81,7 +79,7 @@ const Hier = (function () {
           newObj[key] = Util.cloneObject(value)
         }
       })
-      return newObj
+      return Array.isArray(obj) ? Object.values(newObj) : newObj
     },
     getIsClass: function (callable) {
       if (typeof callable !== "function") return false
@@ -160,20 +158,9 @@ const Hier = (function () {
           case STATES.data:
             const dataMatched = str.match(/^[^<]+/)
             if (dataMatched) {
-              const text = dataMatched[0].replace(/\n/, "").replace(/\s+/, " ")
-              if (values.length) {
-                values.map((item, index) => {
-                  if (Array.isArray(item) && item.some((item) => item.hasOwnProperty("tagName"))) {
-                    item.map((nestedItem) => insertElementToTree(nestedItem))
-                    values[index] = null
-                  }
-                })
-              }
-              const value = HierParser.parseValue(text, values)
-
-              if (value.trim().length) {
+              HierParser.parseValue(dataMatched[0], values, (value) => {
                 insertElementToTree(value)
-              }
+              })
               str = str.slice(dataMatched.index + dataMatched[0].length)
             }
             state = STATES.tag
@@ -210,9 +197,6 @@ const Hier = (function () {
 
     parseProps(str, values) {
       str = " " + str.trim()
-
-      const props = {}
-
       const matchNextProp = () => {
         return (
           /** Double quote */
@@ -226,6 +210,7 @@ const Hier = (function () {
         )
       }
 
+      const props = {}
       let match
       while ((match = matchNextProp())) {
         let [key, ...value] = match[0].split("=")
@@ -251,18 +236,25 @@ const Hier = (function () {
       return str
     },
 
-    parseValue(str, values) {
-      while (str.match(new RegExp(HierParser.PLACEHOLDER))) {
+    parseValue(str, values, callback) {
+      let text = str.replace(/\n/, "").replace(/\s+/, " ")
+      while (text.match(new RegExp(HierParser.PLACEHOLDER))) {
         const value = values.shift()
 
-        if ([null, undefined, ""].includes(value) || !value) {
-          str = str.replace(new RegExp(HierParser.PLACEHOLDER), "")
+        if (!value || Array.isArray(value) || [null, undefined, ""].includes(value)) {
+          if (Array.isArray(value)) {
+            value.map((item) => callback(item))
+          }
+
+          text = text.replace(new RegExp(HierParser.PLACEHOLDER), "")
         } else {
-          str = str.replace(new RegExp(HierParser.PLACEHOLDER), value)
+          text = text.replace(new RegExp(HierParser.PLACEHOLDER), value)
         }
       }
 
-      return str
+      if (text.trim().length) {
+        callback(text)
+      }
     },
   }
 

@@ -11,14 +11,16 @@ class OrangeBg extends BaseComponent {
 
 class FullName extends BaseComponent {
   render() {
-    const fullName = `${this.props.firstName || ""} ${this.props.LastName || ""}`.trim()
-    return html`<strong class="fullname">${fullName || "(noname)"}</strong>`
+    const fullName = `${this.props.firstName || ""} ${this.props.lastName || ""}`.trim()
+    return html`<strong class="fullname">${fullName || "(username)"}</strong>`
   }
 }
 
 class Hello extends BaseComponent {
   render() {
-    return html`Welcome to my test, <${FullName} name=${this.props.name} />`
+    const name = this.props.firstName
+    const surname = this.props.lastName
+    return html`Welcome to my test, <${FullName} firstName=${name} lastName=${surname}>123</FullName>`
   }
 }
 
@@ -53,24 +55,23 @@ class App extends Component {
   render() {
     const buttonText = `Lets register!`
     const clickButton = () => alert("Okay, lets go!")
-    const inner = html`<main>
-      <${Dynamic} />
-    </main>`
 
     return html`Before Application Test
       <hr />
       <form action="/some/cool/url" method="post">
         <${Fieldset} legend="Register Form">
-          <${OrangeBg}>
+          <${OrangeBg} testText="Hello from props">
             <main>
               <${Dynamic} />
             </main>
           </OrangeBg>
 
+          <${Hello} firstName="Alexsey" lastName="Gaidai" />
+
           <footer>
             <button type="button" onClick=${clickButton}>${buttonText}</button>
           </footer>
-        </fieldset>
+        </Fieldset>
       </form>
       <hr />
       After Application Text`
