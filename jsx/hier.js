@@ -82,9 +82,67 @@ const Hier = (function () {
         rootNode.appendChild(element)
       })
     },
+
+    /**
+     * @param {HTMLElement[]} domA
+     * @param {HTMLElement[]} domB
+     * @returns
+     */
+    diff: function (domA, domB) {
+      const resultDom = []
+      const maxElementsCount = Math.max(domA.length, domB.length)
+
+      for (let index = 0; index < maxElementsCount; index++) {
+        const element = domA[index]
+        const parallelElement = domB[index]
+
+        if (!element && !parallelElement) {
+          break
+        } else if (!element && parallelElement) {
+          /** New element has been added to the end */
+          resultDom.push(parallelElement)
+        } else if (element && !parallelElement) {
+          /** Element has been removed from the end */
+          resultDom.push(element)
+        } else if (element.tagName !== parallelElement.tagName) {
+          /** unmount component and destroy the element */
+          resultDom.push(parallelElement)
+        } else {
+          /** @todo Add KEY-mechanism */
+
+          const elementAttrs = getElementAttributes(element)
+          const parallelElementAttrs = getElementAttributes(parallelElement)
+          if (JSON.stringify(elementAttrs) !== JSON.stringify(parallelElementAttrs)) {
+            /** We need to set new attributes to element (and change props if this element is component) */
+            Object.entries(parallelElementAttrs).map(([attr, value]) => element.setAttribute(attr, value))
+          }
+
+          if (!element.childNodes.length || !parallelElement.childNodes.length) {
+            if (element instanceof Text && element === parallelElement) {
+              resultDom.push(element)
+            } else if (element.innerHTML === parallelElement.innerHTML) {
+              resultDom.push(element)
+            } else {
+              resultDom.push(parallelElement)
+            }
+          } else {
+            /** Let's find a children difference */
+            const nestedDiff = diff(element.childNodes, parallelElement.childNodes)
+            if (nestedDiff.length) resultDom.push(parallelElement)
+            else resultDom.push(element)
+          }
+        }
+      }
+
+      return resultDom
+    },
   }
 
   const Util = {
+    /**
+     * @param {object} obj
+     * @returns {object}
+     */
     cloneObject: function (obj) {
       const newObj = Object.assign({}, obj || {})
       Object.entries(newObj).map(([key, value]) => {
@@ -98,9 +156,25 @@ const Hier = (function () {
       })
       return Array.isArray(obj) ? Object.values(newObj) : newObj
     },
+
+    /**
+     * @param {Function} callable
+     * @returns {boolean}
+     */
     getIsClass: function (callable) {
       if (typeof callable !== "function") return false
       return /^class *\w+.*{/.test(callable)
+    },
+
+    /**
+     * @param {HTMLElement} element
+     * @returns {object} Element attributes
+     */
+    getElementAttributes: function (element) {
+      if (!element.hasOwnProperty("getAttributeNames")) return {}
+      return element.getAttributeNames().reduce((result, name) => {
+        return { ...result, [name]: element.getAttribute(name) }
+      }, {})
     },
   }
 
@@ -333,7 +407,7 @@ const Hier = (function () {
         },
         set: (currentValue) => {
           const prevState = this._state
-          this._state = currentValue``
+          this._state = currentValue
           console.log(`State was changed from:`, prevState, `to:`, currentValue)
         },
       })
