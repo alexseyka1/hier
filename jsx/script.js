@@ -5,7 +5,7 @@ const { html, Component, BaseComponent } = Hier
 
 class OrangeBg extends BaseComponent {
   render() {
-    return html`<div style="background-color: orange">${this.props.children}</div>`
+    return html`<div class="I am wrapper">${this.props.children}</div>`
   }
 }
 
@@ -18,6 +18,7 @@ class FullName extends BaseComponent {
 
 class Hello extends BaseComponent {
   render() {
+    console.log(this)
     const name = this.props.firstName
     const surname = this.props.lastName
     return html`Welcome to my test, <${FullName} firstName=${name} lastName=${surname}>123</FullName>`

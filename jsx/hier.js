@@ -27,22 +27,32 @@ const Hier = (function () {
     /**
      * Create components from AST if needed
      */
-    createHierComponents(ast) {
+    createHierComponents(ast, parentComponent) {
       if (!ast) return []
       return ast.reduce((response, astObj) => {
         if (typeof astObj === "object" && astObj.hasOwnProperty("tagName")) {
-          /** Hier component found */
+          /**
+           * Hier component found
+           * Let's create new component instance, render and set his children and push it to tree
+           */
           if (Util.getIsClass(astObj.tagName)) {
             const props = Util.cloneObject(astObj.props)
-            if (astObj.children) {
-              props.children = astObj.children
-            }
             const hierComponent = new astObj.tagName(props)
+            hierComponent.parent = parentComponent
+            if (astObj.children) {
+              props.children = Hier.createHierComponents(astObj.children, hierComponent)
+            }
+
             const componentRendered = hierComponent.render()
-            Hier.createHierComponents(componentRendered).map((nestedItem) => response.push(nestedItem))
+            Hier.createHierComponents(componentRendered, hierComponent).map((nestedItem) => {
+              response.push(nestedItem)
+            })
+
+            /** Replace AST with Hier Component */
+            astObj = hierComponent
           } else if (astObj.children) {
             /** Hier component NOT found - common tag */
-            astObj.children = Hier.createHierComponents(astObj.children)
+            astObj.children = Hier.createHierComponents(astObj.children, parentComponent)
           }
         }
         /** Just text */
@@ -61,9 +71,16 @@ const Hier = (function () {
       const rootComponent = new className()
 
       const ast = rootComponent.render()
-      const components = Hier.createHierComponents(ast)
+      const components = Hier.createHierComponents(ast, rootComponent)
       const rendered = components.map((item) => HierParser.createElementFromAstObject(item))
-      rendered.map((element) => element && rootNode.appendChild(element))
+
+      /** Mount component to DOM */
+      rootComponent.node = rootNode
+      rootComponent.props.children = components
+      rendered.map((element) => {
+        element.node = rootNode
+        rootNode.appendChild(element)
+      })
     },
   }
 
@@ -262,16 +279,15 @@ const Hier = (function () {
    * HIER COMPONENTS
    */
   class BaseComponent {
-    _prevProps = {}
     _props = {}
     props = {}
+    parent = null
     node = null
 
     constructor(props) {
       if (props && typeof props !== "object") throw new Error("Please specify correct props object.")
       this._initChangeableAttr("_props")
       this._props = props || {}
-      this._prevProps = this._props
 
       /** Initialisation props object */
       Object.defineProperty(this, "props", {
@@ -281,9 +297,9 @@ const Hier = (function () {
           return this._props || {}
         },
         set: (currentValue) => {
-          this._prevProps = this._props
+          const prevProps = this._props
           this._props = currentValue
-          console.log(`Props was changed from:`, this._prevProps, `to:`, currentValue)
+          console.log(`Props was changed from:`, prevProps, `to:`, currentValue)
         },
       })
     }
@@ -302,7 +318,6 @@ const Hier = (function () {
   }
 
   class Component extends BaseComponent {
-    _prevState = {}
     _state = {}
 
     constructor(props) {
@@ -317,9 +332,9 @@ const Hier = (function () {
           return this._state || {}
         },
         set: (currentValue) => {
-          this._prevState = this._state
-          this._state = currentValue
-          console.log(`State was changed from:`, this._prevState, `to:`, currentValue)
+          const prevState = this._state
+          this._state = currentValue``
+          console.log(`State was changed from:`, prevState, `to:`, currentValue)
         },
       })
     }
