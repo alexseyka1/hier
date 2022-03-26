@@ -66,13 +66,25 @@ const Hier = (function () {
      * @param {*} rootNode
      */
     render(className, rootNode) {
-      const component = Hier._innerRender(className, rootNode)
+      const rootComponent = Hier._innerRender(className, rootNode)
       /** Mounting rendered component HTML to root node */
-      if (rootNode && rootNode instanceof Node) rootNode.appendChild(component.node)
-      component.node.$$component = component
-      component.afterMount()
+      if (rootNode && rootNode instanceof Node) rootNode.appendChild(rootComponent.node)
 
-      return component.node
+      /** Mounting nested components */
+      const mountComponents = (component) => {
+        if (component instanceof BaseComponent) {
+          component.afterMount()
+
+          if (component.props && component.props.children && Array.isArray(component.props.children)) {
+            component.props.children.map(mountComponents)
+          }
+        } else if (component.children && Array.isArray(component.children)) {
+          component.children.map(mountComponents)
+        }
+      }
+      mountComponents(rootComponent)
+
+      return rootComponent.node
     },
 
     _innerRender(className, rootNode) {
@@ -101,7 +113,7 @@ const Hier = (function () {
           if (typeof tagName === "string") {
             node = Hier.createElement(tagName, item.props || null)
           } else {
-            node = Hier.render(item, parentNode)
+            node = Hier._innerRender(item, parentNode).node
           }
 
           const children = (item.children || []).map((item) => createElementFromAstObject(item, node))
@@ -125,6 +137,7 @@ const Hier = (function () {
         component.node = tempNode
       }
 
+      component.node.$$component = component
       return component
     },
 
@@ -169,22 +182,27 @@ const Hier = (function () {
         } else {
           /** @todo Add KEY-mechanism */
 
+          if (element.$$component && parallelElement.$$component) {
+            const elementProps = Util.jsonSerialize(element.$$component.props)
+            const parallelElementProps = Util.jsonSerialize(parallelElement.$$component.props)
+            if (elementProps !== parallelElementProps) {
+              element.$$component.props = parallelElement.$$component.props
+            }
+          }
+
           const elementAttrs = Util.getElementAttributes(element)
           const parallelElementAttrs = Util.getElementAttributes(parallelElement)
 
           if (JSON.stringify(elementAttrs) !== JSON.stringify(parallelElementAttrs)) {
             /** We need to set new attributes to element (and change props if this element is component) */
             Object.entries(parallelElementAttrs).map(([attr, value]) => element.setAttribute(attr, value))
-            if (element.$$component) console.log(element.$$component)
           }
 
           if (element instanceof Text && element.nodeValue !== parallelElement.nodeValue) {
             element.nodeValue = parallelElement.nodeValue
           }
 
-          if (!element.childNodes.length || parallelElement.childNodes.length) {
-            Hier.mergeNodes(element, parallelElement)
-          }
+          Hier.mergeNodes(element, parallelElement)
         }
       }
 
@@ -193,6 +211,18 @@ const Hier = (function () {
   }
 
   const Util = {
+    /**
+     * Convert component props (or any other object) to JSON.
+     * Replaces BaseComponent instances to string
+     * @param {*} obj
+     * @returns
+     */
+    jsonSerialize: function (obj) {
+      return JSON.stringify(obj, (key, value) => {
+        if (value instanceof BaseComponent) return `__component_${value.constructor.name}__`
+        return value
+      })
+    },
     /**
      * @param {object} obj
      * @returns {object}
@@ -431,7 +461,7 @@ const Hier = (function () {
         set: (currentValue) => {
           const prevProps = this._props
           this._props = currentValue
-          console.log(`Props was changed from:`, prevProps, `to:`, currentValue)
+          //   console.log(`Props was changed from:`, prevProps, `to:`, currentValue)
         },
       })
 

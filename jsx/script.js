@@ -47,7 +47,7 @@ class Dynamic extends Component {
 
     return html`
       <div>
-        <input type="text" placeholder="First Name" onInput=${setFirstName} />
+        <input type="text" placeholder="First Name" onInput="${setFirstName}" />
         <input type="text" placeholder="Last Name" onInput=${setLastName} />
       </div>
 
@@ -71,16 +71,23 @@ class Fieldset extends BaseComponent {
 }
 
 class App extends Component {
+  constructor(props) {
+    super(props)
+    this._state = { legendText: "Register Form" }
+  }
   render() {
     const buttonText = `Lets register!`
     const clickButton = () => {
       console.warn("Okay, lets go!")
     }
 
+    const { legendText } = this.state
+    const changeLegend = () => this.setState({ legendText: Math.random().toString(36).slice(2) })
+
     return html`Before Application Test
       <hr />
       <form action="/some/cool/url" method="post">
-        <${Fieldset} legend="Register Form">
+        <${Fieldset} legend=${legendText}>
           <${OrangeBg} testText="Hello from props">
             <main>
               <${Dynamic} />
@@ -95,6 +102,9 @@ class App extends Component {
         </Fieldset>
       </form>
       <hr />
+      <div>
+        <button type="button" onClick=${() => changeLegend()}>Change legend text</button>
+      </div>
       After Application Text`
   }
 }
