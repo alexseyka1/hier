@@ -1,6 +1,6 @@
 "use strict"
 
-console.time()
+console.time("First rendering")
 const { html, Component, BaseComponent } = Hier
 
 class OrangeBg extends BaseComponent {
@@ -10,6 +10,9 @@ class OrangeBg extends BaseComponent {
 }
 
 class FullName extends BaseComponent {
+  constructor(props) {
+    super(props)
+  }
   render() {
     const fullName = `${this.props.firstName || ""} ${this.props.lastName || ""}`.trim()
     return html`<strong class="fullname">${fullName || "(username)"}</strong>`
@@ -21,6 +24,18 @@ class Hello extends BaseComponent {
     const name = this.props.firstName
     const surname = this.props.lastName
     return html`Welcome to my test, <${FullName} firstName=${name} lastName=${surname}>123</FullName>`
+  }
+}
+
+class LargeHeader extends BaseComponent {
+  render() {
+    return html`<h1 className="red">${this.props.children}</h1>`
+  }
+}
+
+class SmallHeader extends BaseComponent {
+  render() {
+    return html`<h2 className="blue">${this.props.children}</h2>`
   }
 }
 
@@ -40,6 +55,10 @@ class Dynamic extends Component {
         <legend>Resume</legend>
         <${Hello} firstName=${firstName} lastName=${lastName} />
       </fieldset>
+
+      ${firstName && firstName.trim().length
+        ? html`<${LargeHeader}>First Name Filled</LargeHeader> WELL`
+        : html`<${SmallHeader}>First Name is empty ;D</SmallHeader>`}
     `
   }
 }
@@ -54,7 +73,9 @@ class Fieldset extends BaseComponent {
 class App extends Component {
   render() {
     const buttonText = `Lets register!`
-    const clickButton = () => alert("Okay, lets go!")
+    const clickButton = () => {
+      console.warn("Okay, lets go!")
+    }
 
     return html`Before Application Test
       <hr />
@@ -79,4 +100,4 @@ class App extends Component {
 }
 
 Hier.render(App, document.getElementById("app"))
-console.timeEnd()
+console.timeEnd("First rendering")

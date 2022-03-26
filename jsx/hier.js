@@ -26,6 +26,9 @@ const Hier = (function () {
 
     /**
      * Create components from AST if needed
+     * @param {object[]} ast
+     * @param {BaseComponent} parentComponent
+     * @returns
      */
     createHierComponents(ast, parentComponent) {
       if (!ast) return []
@@ -63,9 +66,28 @@ const Hier = (function () {
      * @param {*} rootNode
      */
     render(className, rootNode) {
+      const component = Hier._innerRender(className, rootNode)
+      /** Mounting rendered component HTML to root node */
+      if (rootNode && rootNode instanceof Node) rootNode.appendChild(component.node)
+      component.node.$$component = component
+      component.afterMount()
+
+      return component.node
+    },
+
+    _innerRender(className, rootNode) {
       let component
       if (Util.getIsClass(className)) component = new className()
-      else component = className
+      else {
+        /** Clone component root node to avoid mounted node changing */
+        component = className
+        const newNode = Hier.createElement(
+          component.node.tagName,
+          Util.getElementAttributes(component.node),
+          component.children || []
+        )
+        component.node = newNode
+      }
 
       const ast = component.render()
       const nestedComponents = Hier.createHierComponents(ast, component)
@@ -103,65 +125,70 @@ const Hier = (function () {
         component.node = tempNode
       }
 
-      if (rootNode && rootNode instanceof Node) rootNode.appendChild(component.node)
-      else console.log("NO ROOT!", rootNode, component)
-      component.afterMount()
-
-      return component.node
+      return component
     },
 
     /**
-     * @param {HTMLElement[]} domA
-     * @param {HTMLElement[]} domB
+     * @param {Node} rootA
+     * @param {Node} rootB
      * @returns
      */
-    diff: function (domA, domB) {
-      const resultDom = []
-      const maxElementsCount = Math.max(domA.length, domB.length)
+    mergeNodes: function (rootA, rootB) {
+      const maxElementsCount = Math.max(
+        rootA.childNodes ? rootA.childNodes.length : 0,
+        rootB.childNodes ? rootB.childNodes.length : 0
+      )
+
+      if (!maxElementsCount) return rootA
+
+      const elementsA = Array.from(rootA.childNodes)
+      const elementsB = Array.from(rootB.childNodes)
 
       for (let index = 0; index < maxElementsCount; index++) {
-        const element = domA[index]
-        const parallelElement = domB[index]
+        const element = elementsA[index]
+        const parallelElement = elementsB[index]
 
         if (!element && !parallelElement) {
           break
         } else if (!element && parallelElement) {
           /** New element has been added to the end */
-          resultDom.push(parallelElement)
+          console.debug("[Adding new element]: ", parallelElement)
+          rootA.appendChild(parallelElement)
         } else if (element && !parallelElement) {
           /** Element has been removed from the end */
-          resultDom.push(element)
+          console.debug("[Removing element]: ", element)
+          element.remove()
         } else if (element.tagName !== parallelElement.tagName) {
           /** unmount component and destroy the element */
-          resultDom.push(parallelElement)
+          console.debug("[Unmount component]: ", element)
+          if (element.$$component) element.$$component.beforeUnmount()
+          console.debug("[Mount component]: ", parallelElement)
+          element.replaceWith(parallelElement)
+          if (element.$$component) delete element.$$component
+          if (parallelElement.$$component) parallelElement.$$component.afterMount()
         } else {
           /** @todo Add KEY-mechanism */
 
-          const elementAttrs = getElementAttributes(element)
-          const parallelElementAttrs = getElementAttributes(parallelElement)
+          const elementAttrs = Util.getElementAttributes(element)
+          const parallelElementAttrs = Util.getElementAttributes(parallelElement)
+
           if (JSON.stringify(elementAttrs) !== JSON.stringify(parallelElementAttrs)) {
             /** We need to set new attributes to element (and change props if this element is component) */
             Object.entries(parallelElementAttrs).map(([attr, value]) => element.setAttribute(attr, value))
+            if (element.$$component) console.log(element.$$component)
           }
 
-          if (!element.childNodes.length || !parallelElement.childNodes.length) {
-            if (element instanceof Text && element === parallelElement) {
-              resultDom.push(element)
-            } else if (element.innerHTML === parallelElement.innerHTML) {
-              resultDom.push(element)
-            } else {
-              resultDom.push(parallelElement)
-            }
-          } else {
-            /** Let's find a children difference */
-            const nestedDiff = diff(element.childNodes, parallelElement.childNodes)
-            if (nestedDiff.length) resultDom.push(parallelElement)
-            else resultDom.push(element)
+          if (element instanceof Text && element.nodeValue !== parallelElement.nodeValue) {
+            element.nodeValue = parallelElement.nodeValue
+          }
+
+          if (!element.childNodes.length || parallelElement.childNodes.length) {
+            Hier.mergeNodes(element, parallelElement)
           }
         }
       }
 
-      return resultDom
+      return rootA
     },
   }
 
@@ -198,10 +225,14 @@ const Hier = (function () {
      * @returns {object} Element attributes
      */
     getElementAttributes: function (element) {
-      if (!element.hasOwnProperty("getAttributeNames")) return {}
-      return element.getAttributeNames().reduce((result, name) => {
-        return { ...result, [name]: element.getAttribute(name) }
-      }, {})
+      const attributes = element.attributes
+      if (!attributes || !attributes.length) return {}
+      const result = {}
+      for (let index = 0; index < attributes.length; index++) {
+        const attribute = attributes[index]
+        result[attribute.name] = attribute.value
+      }
+      return result
     },
   }
 
@@ -407,11 +438,15 @@ const Hier = (function () {
       /** Create component root node for mounting */
       this.node = Hier.createElement("main", { $$component: this })
 
-      console.log("[Created]: ", this.constructor.name)
+      console.debug("[Created]: ", this.constructor.name)
     }
 
     afterMount() {
-      console.log("[AfterMount]: ", this.constructor.name)
+      console.debug("[AfterMount]: ", this.constructor.name)
+    }
+
+    beforeUnmount() {
+      console.debug("[BeforeUnmount]: ", this.constructor.name)
     }
 
     _initChangeableAttr(attr, defaultValue) {
@@ -448,8 +483,11 @@ const Hier = (function () {
           /**
            * RE-RENDER PROCESS
            */
+          const oldDom = this.node
+          const rendered = Hier._innerRender(this, this.node)
+          const newDom = rendered.node
+          this.node = Hier.mergeNodes(oldDom, newDom)
 
-          /** */
           //   console.log(`State was changed from:`, prevState, `to:`, currentValue)
         },
       })
