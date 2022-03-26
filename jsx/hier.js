@@ -39,14 +39,10 @@ const Hier = (function () {
             const props = Util.cloneObject(astObj.props)
             const hierComponent = new astObj.tagName(props)
             hierComponent.parent = parentComponent
-            if (astObj.children) {
-              props.children = Hier.createHierComponents(astObj.children, hierComponent)
-            }
 
-            const componentRendered = hierComponent.render()
-            Hier.createHierComponents(componentRendered, hierComponent).map((nestedItem) => {
-              response.push(nestedItem)
-            })
+            if (astObj.children) {
+              props.children = astObj.children
+            }
 
             /** Replace AST with Hier Component */
             astObj = hierComponent
@@ -55,7 +51,6 @@ const Hier = (function () {
             astObj.children = Hier.createHierComponents(astObj.children, parentComponent)
           }
         }
-        /** Just text */
         response.push(astObj)
 
         return response
@@ -68,19 +63,51 @@ const Hier = (function () {
      * @param {*} rootNode
      */
     render(className, rootNode) {
-      const rootComponent = new className()
+      let component
+      if (Util.getIsClass(className)) component = new className()
+      else component = className
 
-      const ast = rootComponent.render()
-      const components = Hier.createHierComponents(ast, rootComponent)
-      const rendered = components.map((item) => HierParser.createElementFromAstObject(item))
+      const ast = component.render()
+      const nestedComponents = Hier.createHierComponents(ast, component)
 
-      /** Mount component to DOM */
-      rootComponent.node = rootNode
-      rootComponent.props.children = components
-      rendered.map((element) => {
-        element.node = rootNode
-        rootNode.appendChild(element)
-      })
+      /** Rending component children */
+      const createElementFromAstObject = (item, parentNode) => {
+        if (typeof item === "object") {
+          let tagName = item.tagName || item
+          let node
+
+          if (typeof tagName === "string") {
+            node = Hier.createElement(tagName, item.props || null)
+          } else {
+            node = Hier.render(item, parentNode)
+          }
+
+          const children = (item.children || []).map((item) => createElementFromAstObject(item, node))
+          children.map((child) => child && node.appendChild(child))
+
+          return node
+        } else {
+          return Hier.createTextElement(item)
+        }
+      }
+
+      const rendered = nestedComponents.map((item) => createElementFromAstObject(item, rootNode))
+      component.props.children = nestedComponents
+      rendered.map((element) => component.node.appendChild(element))
+
+      /** Mounting component to DOM root node */
+      /** Removing unnecessary nested tags */
+      while (component.node.childNodes.length === 1 && !(component.node.childNodes[0] instanceof Text)) {
+        const tempNode = component.node.childNodes[0]
+        component.node.remove()
+        component.node = tempNode
+      }
+
+      if (rootNode && rootNode instanceof Node) rootNode.appendChild(component.node)
+      else console.log("NO ROOT!", rootNode, component)
+      component.afterMount()
+
+      return component.node
     },
 
     /**
@@ -376,6 +403,15 @@ const Hier = (function () {
           console.log(`Props was changed from:`, prevProps, `to:`, currentValue)
         },
       })
+
+      /** Create component root node for mounting */
+      this.node = Hier.createElement("main", { $$component: this })
+
+      console.log("[Created]: ", this.constructor.name)
+    }
+
+    afterMount() {
+      console.log("[AfterMount]: ", this.constructor.name)
     }
 
     _initChangeableAttr(attr, defaultValue) {
@@ -408,7 +444,13 @@ const Hier = (function () {
         set: (currentValue) => {
           const prevState = this._state
           this._state = currentValue
-          console.log(`State was changed from:`, prevState, `to:`, currentValue)
+
+          /**
+           * RE-RENDER PROCESS
+           */
+
+          /** */
+          //   console.log(`State was changed from:`, prevState, `to:`, currentValue)
         },
       })
     }
