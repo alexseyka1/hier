@@ -40,15 +40,22 @@ class SmallHeader extends BaseComponent {
 }
 
 class Dynamic extends Component {
+  constructor(props) {
+    super(props)
+    this._state = { firstName: "Hello", lastName: "Dolly" }
+    console.trace()
+    console.error("I am a new instance with state:", this._state)
+  }
   render() {
+    console.warn("Okay. I am rendered with state:", this._state)
     const { firstName, lastName } = this.state
     const setFirstName = (e) => this.setState({ firstName: e.target.value })
     const setLastName = (e) => this.setState({ lastName: e.target.value })
 
     return html`
       <div>
-        <input type="text" placeholder="First Name" onInput="${setFirstName}" />
-        <input type="text" placeholder="Last Name" onInput=${setLastName} />
+        <input type="text" placeholder="First Name" value=${firstName} onInput=${setFirstName} />
+        <input type="text" placeholder="Last Name" value=${lastName} onInput=${setLastName} />
       </div>
 
       <fieldset>

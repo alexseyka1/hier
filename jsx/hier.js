@@ -51,6 +51,7 @@ const Hier = (function () {
             astObj = hierComponent
           } else if (astObj.children) {
             /** Hier component NOT found - common tag */
+            console.log(astObj.children)
             astObj.children = Hier.createHierComponents(astObj.children, parentComponent)
           }
         }
@@ -66,7 +67,7 @@ const Hier = (function () {
      * @param {*} rootNode
      */
     render(className, rootNode) {
-      const rootComponent = Hier._innerRender(className, rootNode)
+      const rootComponent = Hier._innerRender(className)
       /** Mounting rendered component HTML to root node */
       if (rootNode && rootNode instanceof Node) rootNode.appendChild(rootComponent.node)
 
@@ -87,18 +88,17 @@ const Hier = (function () {
       return rootComponent.node
     },
 
-    _innerRender(className, rootNode) {
+    _innerRender(className) {
       let component
       if (Util.getIsClass(className)) component = new className()
       else {
         /** Clone component root node to avoid mounted node changing */
         component = className
-        const newNode = Hier.createElement(
+        component.node = Hier.createElement(
           component.node.tagName,
           Util.getElementAttributes(component.node),
           component.children || []
         )
-        component.node = newNode
       }
 
       const ast = component.render()
@@ -125,7 +125,7 @@ const Hier = (function () {
         }
       }
 
-      const rendered = nestedComponents.map((item) => createElementFromAstObject(item, rootNode))
+      const rendered = nestedComponents.map((item) => createElementFromAstObject(item, component.node))
       component.props.children = nestedComponents
       rendered.map((element) => component.node.appendChild(element))
 
@@ -461,7 +461,7 @@ const Hier = (function () {
         set: (currentValue) => {
           const prevProps = this._props
           this._props = currentValue
-          //   console.log(`Props was changed from:`, prevProps, `to:`, currentValue)
+          console.log(`Props was changed from:`, prevProps, `to:`, currentValue)
         },
       })
 
@@ -515,8 +515,7 @@ const Hier = (function () {
            */
           const oldDom = this.node
           const rendered = Hier._innerRender(this, this.node)
-          const newDom = rendered.node
-          this.node = Hier.mergeNodes(oldDom, newDom)
+          this.node = Hier.mergeNodes(oldDom, rendered.node)
 
           //   console.log(`State was changed from:`, prevState, `to:`, currentValue)
         },
