@@ -15,7 +15,7 @@ class FullName extends BaseComponent {
   }
   render() {
     const fullName = `${this.props.firstName || ""} ${this.props.lastName || ""}`.trim()
-    return html`<strong class="fullname">${fullName || "(username)"}</strong>`
+    return html`<strong className="fullname">${fullName || "(username)"}</strong>`
   }
 }
 
@@ -23,7 +23,7 @@ class Hello extends BaseComponent {
   render() {
     const name = this.props.firstName
     const surname = this.props.lastName
-    return html`Welcome to my test, <${FullName} firstName=${name} lastName=${surname}>123</FullName>`
+    return html`Welcome to my test, <${FullName} firstName=${name} lastName=${surname}></FullName>`
   }
 }
 
@@ -42,8 +42,7 @@ class SmallHeader extends BaseComponent {
 class Dynamic extends Component {
   constructor(props) {
     super(props)
-    this._state = { firstName: "Hello", lastName: "Dolly" }
-    console.trace()
+    // this._state = { firstName: "Hello", lastName: "Dolly" }
     console.error("I am a new instance with state:", this._state)
   }
   render() {
@@ -54,8 +53,8 @@ class Dynamic extends Component {
 
     return html`
       <div>
-        <input type="text" placeholder="First Name" value=${firstName} onInput=${setFirstName} />
-        <input type="text" placeholder="Last Name" value=${lastName} onInput=${setLastName} />
+        <input type="text" placeholder="First Name" value=${firstName || ""} onInput=${setFirstName} />
+        <input type="text" placeholder="Last Name" value=${lastName || ""} onInput=${setLastName} />
       </div>
 
       <fieldset>
@@ -64,8 +63,8 @@ class Dynamic extends Component {
       </fieldset>
 
       ${firstName && firstName.trim().length
-        ? html`<${LargeHeader}>First Name Filled</LargeHeader> WELL`
-        : html`<${SmallHeader}>First Name is empty ;D</SmallHeader>`}
+        ? html`<h1 className="red">First Name Filled</h1>`
+        : html`<${SmallHeader}>First Name is empty</SmallHeader>`}
     `
   }
 }
