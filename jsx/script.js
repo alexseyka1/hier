@@ -64,7 +64,7 @@ class Dynamic extends Component {
 
       ${firstName && firstName.trim().length
         ? html`<h1 className="red">First Name Filled</h1>`
-        : html`<${SmallHeader}>First Name is empty</SmallHeader>`}
+        : html`<h2 className="blue">First Name is empty</h2>`}
     `
   }
 }

@@ -139,11 +139,11 @@ const Hier = (function () {
 
       /** Mounting component to DOM root node */
       /** Removing unnecessary nested tags */
-      //   while (component.node.childNodes.length === 1 && !(component.node.childNodes[0] instanceof Text)) {
-      //     const tempNode = component.node.childNodes[0]
-      //     component.node.remove()
-      //     component.node = tempNode
-      //   }
+      while (component.node.childNodes.length === 1 && !(component.node.childNodes[0] instanceof Text)) {
+        const tempNode = component.node.childNodes[0]
+        component.node.remove()
+        component.node = tempNode
+      }
 
       if (!component.node.$$component) component.node.$$component = component
       return component
@@ -151,150 +151,127 @@ const Hier = (function () {
 
     updateComponent(component) {
       console.warn("[COMPONENT RERENDERED] props:", component.props, ", state:", component.state)
-
-      const ast = component.render()
-      const nestedComponents = Hier.createHierComponents(ast, component)
-      Hier.mergeComponents(component, nestedComponents)
+      Hier.mergeComponentChildren(component, Hier.createHierComponents(component.render(), component))
     },
 
-    mergeComponents(component, newTree) {
-      let elementsA
-      if (component instanceof BaseComponent) {
-        if (!component.props.hasOwnProperty("children")) component.props.children = []
-        elementsA = component.props.children
-      } else {
-        elementsA = component.children || []
-      }
-
-      let elementsB = newTree
-      const maxElementsCount = Math.max(elementsA.length, elementsB.length)
-      if (!maxElementsCount) return
-
+    mergeComponentChildren(component, newTree) {
+      const maxElementsCount = Math.max(component.props.children.length, newTree.length)
       for (let index = 0; index < maxElementsCount; index++) {
-        const element = elementsA[index]
-        const parallelElement = elementsB[index]
+        const currentElement = component.props.children[index]
+        const newElement = newTree[index]
 
-        if (!element && !parallelElement) {
-          break
-        } else if (!element && parallelElement) {
-          /**
-           * New element has been added to the end
-           */
-          console.debug("[Adding new element]: ", parallelElement)
-
-          if (typeof parallelElement !== "object" && !parallelElement.hasOwnProperty("tagName")) {
-            console.warn("Unknown element type", parallelElement)
-            continue
-          }
-
-          if (parallelElement instanceof BaseComponent) {
-            /** Add new component */
-            const newNode = Hier.render(parallelElement)
-            console.log("ADDING NEW COMPONENT", component, component.node, newNode, parallelElement)
-            Hier._mountComponents(parallelElement)
-            component.node.appendChild(newNode)
-            /** Let's replace current component with a new one */
-            if (component instanceof BaseComponent) component.props.children[index] = parallelElement
-            else component.children[index] = parallelElement
-          } else if (typeof parallelElement.tagName === "function" && Util.getIsClass(parallelElement.tagName)) {
-            /** Create new class instance */
-            const newComponent = new parallelElement.tagName(parallelElement.props || {})
-            newComponent.parent = component
-            newComponent.props.children = parallelElement.children || []
-            Hier.render(newComponent, component.node)
-
-            component instanceof BaseComponent
-              ? component.props.children.push(newComponent)
-              : component.children.push(newComponent)
-          } else if (typeof parallelElement.tagName === "string") {
-            /** Create common html element */
-            const newElement = Hier._createElementFromAstObject(parallelElement)
-            component.node.appendChild(newElement)
-
-            component instanceof BaseComponent
-              ? component.props.children.push(parallelElement)
-              : component.children.push(parallelElement)
+        if (!currentElement && !newElement) continue
+        else if (!currentElement && newElement) {
+          /** New element will be added */
+          if (newElement instanceof BaseComponent) {
+            /** New element is a component. We will render it, append it's node and push it to component children list */
+            const newComponent = Hier._innerRender(newElement)
+            component.props.children.push(newComponent)
+            component.node.appendChild(newComponent.node)
+            Hier._mountComponents(newComponent)
           } else {
-            console.warn("Unknown new element", parallelElement)
+            /** New element is an object */
+            const newElementRendered = Hier._createElementFromAstObject(newElement)
+            if (newElementRendered instanceof Node) {
+              component.node.appendChild(newElementRendered)
+              component.props.children.push(newElement)
+            } else {
+              console.warn("Unknown type", newElementRendered)
+            }
           }
-        } else if (element && !parallelElement) {
-          /**
-           * Element has been removed from the end
-           */
-
-          console.debug("[Removing element]: ", element, "Index:", index)
-          component.props.children = component.props.children.filter((_elem) => _elem !== element)
-          if (element.node) element.node.remove()
-          if (element instanceof BaseComponent) element.beforeUnmount()
-          else if (element instanceof Node) element.remove()
+        } else if (currentElement && !newElement) {
+          /** Current element will be removed */
+          if (currentElement instanceof BaseComponent) {
+            currentElement.beforeUnmount()
+          }
+          currentElement.node.remove()
+          component.props.children.pop()
         } else {
-          /**
-           * Element has been replaced, moved or unchanged
-           */
+          /** Current element may be replaced, moved or unchaned */
 
-          if (element instanceof BaseComponent) {
-            /** Existing element is a component */
-            if (parallelElement instanceof BaseComponent) {
-              /** New element is component */
-              if (parallelElement.constructor.name === element.constructor.name) {
-                /** New component is the same as existing */
-                const parallelElementRendered = Hier._innerRender(parallelElement)
-
-                /**
-                 * @todo Check if props was changed than update the component
-                 */
-                element.props = Util.cloneObject(parallelElementRendered.props)
-                Hier.updateComponent(element)
-              } else {
-                /** New component has a different class */
-                const newNode = Hier.render(parallelElement)
-                element.node.replaceWith(newNode)
-                /** Let's replace current component with a new one */
-                if (component instanceof BaseComponent) component.props.children[index] = parallelElement
-                else component.children[index] = parallelElement
-              }
+          if (currentElement instanceof BaseComponent) {
+            /** Current element is a component */
+            if (newElement instanceof BaseComponent) {
+              /** New element is a component either */
+              currentElement.props = newElement.props
+              currentElement.props.children = Hier.createHierComponents(newElement.render(), currentElement)
+              Hier.updateComponent(currentElement)
             } else {
-              /** New element is a common html element */
-              element.beforeUnmount()
-              const newElement = Hier._createElementFromAstObject(parallelElement)
-              element.node.replaceWith(newElement)
-              /** Let's replace current element with a new one */
-              if (component instanceof BaseComponent) component.props.children[index] = parallelElement
-              else component.children[index] = parallelElement
+              /** New element is an object */
+              currentElement.beforeUnmount()
+              const renderedNode = Hier._createElementFromAstObject(newElement)
+              currentElement.node.replaceWith(renderedNode)
             }
           } else {
-            /** Element is not a component */
-            if (parallelElement instanceof BaseComponent) {
+            /** Current element is an object */
+            if (newElement instanceof BaseComponent) {
               /** New element is a component */
-              const newNode = Hier.render(parallelElement)
-              element.node.replaceWith(newNode)
-              /** Let's replace current component with a new one */
-              if (component instanceof BaseComponent) component.props.children[index] = parallelElement
-              else component.children[index] = parallelElement
-            } else if (element.tagName === parallelElement.tagName) {
-              /** New element is not a component */
-              /** New element tag name is equal to the existing one */
-              element.props = parallelElement.props
-              Object.entries(parallelElement.props).map(([key, value]) => {
-                element.node[key] = value
-              })
-
-              console.log("All equal. We must check children")
+              const newComponent = Hier._innerRender(newElement)
+              currentElement.node.replaceWith(newComponent.node)
+              Hier._mountComponents(newComponent)
+              component.props.children[index] = newComponent
+            } else if (currentElement.tagName === newElement.tagName) {
+              /** If current tag name is the same as a new tag name */
+              if (newElement.children) Hier.mergeElementChildren(currentElement, newElement.children)
             } else {
-              console.log("Ok i am here", element, parallelElement)
-              // const newElement = Hier.createElement(
-              //   parallelElement.tagName,
-              //   parallelElement.props || {},
-              //   parallelElement.children || []
-              // )
-              // console.log({ element })
-              // element.node.replaceWith(newElement)
-              // /** Let's replace current element with a new one */
-              // if (component instanceof BaseComponent) component.props.children[index] = parallelElement
-              // else component.children[index] = parallelElement
+              /** If current tag name is NOT the same as a new name */
+              const renderedNode = Hier._createElementFromAstObject(newElement)
+              currentElement.node.replaceWith(renderedNode)
+              component.props.children[index] = newElement
             }
+          }
+        }
+      }
+    },
 
-            //   if (parallelElement.children) Hier.mergeComponents(element, parallelElement.children)
+    mergeElementChildren(element, newTree) {
+      const maxElementsCount = Math.max(element.children.length, newTree.length)
+      for (let index = 0; index < maxElementsCount; index++) {
+        const currentElement = element.children[index]
+        const newElement = newTree[index]
+
+        if (!currentElement && !newElement) continue
+        else if (!currentElement && newElement) {
+          /** New element will be added */
+          if (newElement instanceof BaseComponent) {
+            /** New element is a component. We will render it, append it's node and push it to component children list */
+            const newComponent = Hier._innerRender(newElement)
+            element.children.push(newComponent)
+            element.node.appendChild(newComponent.node)
+            Hier._mountComponents(newComponent)
+          } else {
+            /** New element is an object */
+            const newElementRendered = Hier._createElementFromAstObject(newElement)
+            if (newElementRendered instanceof Node) {
+              element.node.appendChild(newElementRendered)
+              element.children.push(newElement)
+            } else {
+              console.warn("Unknown type", newElementRendered)
+            }
+          }
+        } else if (currentElement && !newElement) {
+          /** Current element will be removed */
+          if (currentElement instanceof BaseComponent) {
+            currentElement.beforeUnmount()
+          }
+          currentElement.node.remove()
+          element.children.pop()
+        } else {
+          /** Current element may be replaced, moved or unchaned */
+          if (newElement instanceof BaseComponent) {
+            /** New element is a component */
+            const newComponent = Hier._innerRender(newElement)
+            currentElement.node.replaceWith(newComponent.node)
+            element.children[index] = newComponent
+            Hier._mountComponents(newComponent)
+          } else if (currentElement.tagName === newElement.tagName) {
+            /** If current tag name is the same as a new tag name */
+            if (newElement.children) Hier.mergeElementChildren(currentElement, newElement.children)
+          } else {
+            /** If current tag name is NOT the same as a new name */
+            const renderedNode = Hier._createElementFromAstObject(newElement)
+            currentElement.node.replaceWith(renderedNode)
+            element.children[index] = newElement
           }
         }
       }
