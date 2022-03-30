@@ -1,5 +1,11 @@
 const Hier = (function () {
   const EVENT_RERENDER = "rerender"
+  const defaultLogStyles = ["color: #fff", "background-color: #444", "padding: 2px 4px", "border-radius: 2px"]
+  const LogStyles = {
+    base: defaultLogStyles.join(";"),
+    warning: [...defaultLogStyles, "color: #eee", "background-color: red"].join(";"),
+    success: [...defaultLogStyles, "background-color: green"].join(";"),
+  }
 
   /**
    * HIER RENDERER
@@ -97,27 +103,26 @@ const Hier = (function () {
      * @returns {Node}
      */
     _createElementFromAstObject(item) {
-      if (typeof item === "object") {
-        let tagName = item.tagName || item
-        let node
+      let tagName = item.tagName || item
+      let node
 
-        if (typeof tagName === "string") {
-          node = Hier.createElement(tagName, item.props || null)
-        } else {
-          node = Hier._innerRender(item).node
-        }
-        item.node = node
-
-        const children = (item.children || []).map((item) => Hier._createElementFromAstObject(item))
-        children.map((child) => child && node.appendChild(child))
-
-        return node
+      if (typeof tagName === "string") {
+        node = Hier.createElement(tagName, item.props || null)
       } else {
-        return Hier.createTextElement(item)
+        node = Hier._innerRender(item).node
       }
+      if (!item.node) item.node = node
+
+      const children = (item.children || []).map((item) => Hier._createElementFromAstObject(item))
+      children.map((child) => child && node.appendChild(child))
+
+      return node
     },
 
     _innerRender(className) {
+      if (className.constructor.name === "OrangeBg") {
+        console.log(className)
+      }
       let component
       if (Util.getIsClass(className)) component = new className()
       else {
@@ -133,24 +138,24 @@ const Hier = (function () {
       const ast = component.render()
       const nestedComponents = Hier.createHierComponents(ast, component)
 
-      const rendered = nestedComponents.map((item) => Hier._createElementFromAstObject(item, component.node))
+      const rendered = nestedComponents.map((item) => Hier._createElementFromAstObject(item))
       component.props.children = nestedComponents
       rendered.map((element) => component.node.appendChild(element))
 
       /** Mounting component to DOM root node */
       /** Removing unnecessary nested tags */
-      while (component.node.childNodes.length === 1 && !(component.node.childNodes[0] instanceof Text)) {
-        const tempNode = component.node.childNodes[0]
-        component.node.remove()
-        component.node = tempNode
-      }
+      // while (component.node.childNodes.length === 1 && !(component.node.childNodes[0] instanceof Text)) {
+      //   const tempNode = component.node.childNodes[0]
+      //   component.node.remove()
+      //   component.node = tempNode
+      // }
 
       if (!component.node.$$component) component.node.$$component = component
       return component
     },
 
     updateComponent(component) {
-      console.warn("[COMPONENT RERENDERED] props:", component.props, ", state:", component.state)
+      console.debug(`[RE-RENDER] [${component.constructor.name}] props:`, component.props, ", state:", component.state)
       Hier.mergeComponentChildren(component, Hier.createHierComponents(component.render(), component))
     },
 
@@ -191,11 +196,13 @@ const Hier = (function () {
 
           if (currentElement instanceof BaseComponent) {
             /** Current element is a component */
-            if (newElement instanceof BaseComponent) {
+            if (
+              newElement instanceof BaseComponent &&
+              currentElement.constructor.name === newElement.constructor.name
+            ) {
               /** New element is a component either */
-              currentElement.props = newElement.props
-              currentElement.props.children = Hier.createHierComponents(newElement.render(), currentElement)
-              Hier.updateComponent(currentElement)
+              const newComponent = Hier._innerRender(newElement)
+              Hier.mergeComponentChildren(currentElement, newComponent.props.children)
             } else {
               /** New element is an object */
               currentElement.beforeUnmount()
@@ -260,90 +267,110 @@ const Hier = (function () {
           /** Current element may be replaced, moved or unchaned */
           if (newElement instanceof BaseComponent) {
             /** New element is a component */
-            const newComponent = Hier._innerRender(newElement)
-            currentElement.node.replaceWith(newComponent.node)
-            element.children[index] = newComponent
-            Hier._mountComponents(newComponent)
+            if (
+              currentElement instanceof BaseComponent &&
+              currentElement.constructor.name === newElement.constructor.name
+            ) {
+              const newComponent = Hier._innerRender(newElement)
+              Hier.mergeComponentChildren(currentElement, newComponent.props.children)
+            } else {
+              // const newComponent = Hier._innerRender(newElement)
+              // currentElement.node.replaceWith(newComponent.node)
+              // element.children[index] = newComponent
+              // Hier._mountComponents(newComponent)
+            }
           } else if (currentElement.tagName === newElement.tagName) {
             /** If current tag name is the same as a new tag name */
+            if (currentElement.tagName === "text") {
+              currentElement.node.nodeValue = newElement.props.value
+            } else {
+              Object.entries(newElement.props).map(([attr, value]) => {
+                if (/^on\w+/.test(attr)) return
+                currentElement.node.setAttribute(attr, value)
+              })
+            }
             if (newElement.children) Hier.mergeElementChildren(currentElement, newElement.children)
           } else {
+            console.log("%c[We need replace tag]", LogStyles.warning, currentElement, newElement)
             /** If current tag name is NOT the same as a new name */
-            const renderedNode = Hier._createElementFromAstObject(newElement)
-            currentElement.node.replaceWith(renderedNode)
-            element.children[index] = newElement
+            // const renderedNode = Hier._createElementFromAstObject(newElement)
+            // currentElement.node.replaceWith(renderedNode)
+            // element.children[index] = newElement
           }
         }
+
+        console.debug("%c[1]", LogStyles.base, currentElement, newElement)
       }
     },
 
-    /**
-     * @param {Node} rootA
-     * @param {Node} rootB
-     * @returns
-     */
-    mergeNodes(rootA, rootB) {
-      const maxElementsCount = Math.max(
-        rootA.childNodes ? rootA.childNodes.length : 0,
-        rootB.childNodes ? rootB.childNodes.length : 0
-      )
+    // /**
+    //  * @deprecated
+    //  * @param {Node} rootA
+    //  * @param {Node} rootB
+    //  * @returns
+    //  */
+    // mergeNodes(rootA, rootB) {
+    //   const maxElementsCount = Math.max(
+    //     rootA.childNodes ? rootA.childNodes.length : 0,
+    //     rootB.childNodes ? rootB.childNodes.length : 0
+    //   )
 
-      if (!maxElementsCount) return rootA
+    //   if (!maxElementsCount) return rootA
 
-      const elementsA = Array.from(rootA.childNodes)
-      const elementsB = Array.from(rootB.childNodes)
+    //   const elementsA = Array.from(rootA.childNodes)
+    //   const elementsB = Array.from(rootB.childNodes)
 
-      for (let index = 0; index < maxElementsCount; index++) {
-        const element = elementsA[index]
-        const parallelElement = elementsB[index]
+    //   for (let index = 0; index < maxElementsCount; index++) {
+    //     const element = elementsA[index]
+    //     const parallelElement = elementsB[index]
 
-        if (!element && !parallelElement) {
-          break
-        } else if (!element && parallelElement) {
-          /** New element has been added to the end */
-          console.debug("[Adding new element]: ", parallelElement)
-          rootA.appendChild(parallelElement)
-        } else if (element && !parallelElement) {
-          /** Element has been removed from the end */
-          console.debug("[Removing element]: ", element)
-          element.remove()
-        } else if (element.tagName !== parallelElement.tagName) {
-          /** unmount component and destroy the element */
-          console.debug("[Unmount component]: ", element)
-          if (element.$$component) element.$$component.beforeUnmount()
-          console.debug("[Mount component]: ", parallelElement)
-          element.replaceWith(parallelElement)
-          if (element.$$component) delete element.$$component
-          if (parallelElement.$$component) parallelElement.$$component.afterMount()
-        } else {
-          /** @todo Add KEY-mechanism */
+    //     if (!element && !parallelElement) {
+    //       break
+    //     } else if (!element && parallelElement) {
+    //       /** New element has been added to the end */
+    //       console.debug("[Adding new element]: ", parallelElement)
+    //       rootA.appendChild(parallelElement)
+    //     } else if (element && !parallelElement) {
+    //       /** Element has been removed from the end */
+    //       console.debug("[Removing element]: ", element)
+    //       element.remove()
+    //     } else if (element.tagName !== parallelElement.tagName) {
+    //       /** unmount component and destroy the element */
+    //       console.debug("[Unmount component]: ", element)
+    //       if (element.$$component) element.$$component.beforeUnmount()
+    //       console.debug("[Mount component]: ", parallelElement)
+    //       element.replaceWith(parallelElement)
+    //       if (element.$$component) delete element.$$component
+    //       if (parallelElement.$$component) parallelElement.$$component.afterMount()
+    //     } else {
+    //       /** @todo Add KEY-mechanism */
 
-          if (element.$$component && parallelElement.$$component) {
-            const elementProps = Util.jsonSerialize(element.$$component.props)
-            const parallelElementProps = Util.jsonSerialize(parallelElement.$$component.props)
-            if (elementProps !== parallelElementProps) {
-              element.$$component.props = parallelElement.$$component.props
-            }
-          }
+    //       if (element.$$component && parallelElement.$$component) {
+    //         const elementProps = Util.jsonSerialize(element.$$component.props)
+    //         const parallelElementProps = Util.jsonSerialize(parallelElement.$$component.props)
+    //         if (elementProps !== parallelElementProps) {
+    //           element.$$component.props = parallelElement.$$component.props
+    //         }
+    //       }
 
-          const elementAttrs = Util.getElementAttributes(element)
-          const parallelElementAttrs = Util.getElementAttributes(parallelElement)
+    //       const elementAttrs = Util.getElementAttributes(element)
+    //       const parallelElementAttrs = Util.getElementAttributes(parallelElement)
 
-          if (JSON.stringify(elementAttrs) !== JSON.stringify(parallelElementAttrs)) {
-            /** We need to set new attributes to element (and change props if this element is component) */
-            Object.entries(parallelElementAttrs).map(([attr, value]) => element.setAttribute(attr, value))
-          }
+    //       if (JSON.stringify(elementAttrs) !== JSON.stringify(parallelElementAttrs)) {
+    //         /** We need to set new attributes to element (and change props if this element is component) */
+    //         Object.entries(parallelElementAttrs).map(([attr, value]) => element.setAttribute(attr, value))
+    //       }
 
-          if (element instanceof Text && element.nodeValue !== parallelElement.nodeValue) {
-            element.nodeValue = parallelElement.nodeValue
-          }
+    //       if (element instanceof Text && element.nodeValue !== parallelElement.nodeValue) {
+    //         element.nodeValue = parallelElement.nodeValue
+    //       }
 
-          Hier.mergeNodes(element, parallelElement)
-        }
-      }
+    //       Hier.mergeNodes(element, parallelElement)
+    //     }
+    //   }
 
-      return rootA
-    },
+    //   return rootA
+    // },
   }
 
   const Util = {
@@ -597,7 +624,7 @@ const Hier = (function () {
         set: (currentValue) => {
           const prevProps = this._props
           this._props = currentValue
-          console.log(`Props was changed from:`, prevProps, `to:`, currentValue)
+          console.debug(`Props was changed from:`, prevProps, `to:`, currentValue)
         },
       })
 
