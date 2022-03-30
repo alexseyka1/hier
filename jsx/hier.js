@@ -31,6 +31,10 @@ const Hier = (function () {
       return document.createTextNode(value)
     },
 
+    _createTextAstObject(value) {
+      return { tagName: "text", props: { value } }
+    },
+
     /**
      * Create components from AST if needed
      * @param {object[]} ast
@@ -41,7 +45,7 @@ const Hier = (function () {
       if (!ast) return []
       return ast.reduce((response, astObj) => {
         if (typeof astObj === "string") {
-          astObj = { tagName: "text", props: { value: astObj } }
+          astObj = Hier._createTextAstObject(astObj)
         } else if (typeof astObj === "object" && astObj.hasOwnProperty("tagName")) {
           /**
            * Hier component found
@@ -87,6 +91,8 @@ const Hier = (function () {
      * @param {*} rootNode
      */
     render(className, rootNode) {
+      console.time("Application rendering")
+      console.groupCollapsed(`[Application rendering] [${className.name}]`)
       const rootComponent = Hier._innerRender(className)
       /** Mounting rendered component HTML to root node */
       if (rootNode && rootNode instanceof Node) rootNode.appendChild(rootComponent.node)
@@ -94,6 +100,8 @@ const Hier = (function () {
       /** Mounting nested components */
       Hier._mountComponents(rootComponent)
 
+      console.groupEnd()
+      console.timeEnd("Application rendering")
       return rootComponent.node
     },
 
@@ -120,9 +128,6 @@ const Hier = (function () {
     },
 
     _innerRender(className) {
-      if (className.constructor.name === "OrangeBg") {
-        console.log(className)
-      }
       let component
       if (Util.getIsClass(className)) component = new className()
       else {
@@ -144,233 +149,221 @@ const Hier = (function () {
 
       /** Mounting component to DOM root node */
       /** Removing unnecessary nested tags */
-      // while (component.node.childNodes.length === 1 && !(component.node.childNodes[0] instanceof Text)) {
-      //   const tempNode = component.node.childNodes[0]
-      //   component.node.remove()
-      //   component.node = tempNode
-      // }
+      while (component.node.childNodes.length === 1 && !(component.node.childNodes[0] instanceof Text)) {
+        const tempNode = component.node.childNodes[0]
+        component.node.remove()
+        component.node = tempNode
+      }
 
       if (!component.node.$$component) component.node.$$component = component
       return component
     },
 
-    updateComponent(component) {
-      console.debug(`[RE-RENDER] [${component.constructor.name}] props:`, component.props, ", state:", component.state)
-      Hier.mergeComponentChildren(component, Hier.createHierComponents(component.render(), component))
-    },
+    rerenderComponent(component) {
+      console.time(`[Re-render time] [${component.constructor.name}]`)
+      console.group(
+        `%c[RERENDER]`,
+        LogStyles.warning,
+        `[${component.constructor.name}] props:`,
+        component.props,
+        ", state:",
+        component.state
+      )
 
-    mergeComponentChildren(component, newTree) {
-      const maxElementsCount = Math.max(component.props.children.length, newTree.length)
+      const clonedProps = Util.cloneObject(component.props)
+      const newComponent = new component.constructor(clonedProps)
+      newComponent._state = Util.cloneObject(component._state)
+
+      const renderedAst = newComponent.render()
+
+      // const _renderedAst = Hier.createHierComponents(renderedAst, newComponent)
+      // /** FIX ? */
+      // _renderedAst.map((item) => Hier._createElementFromAstObject(item))
+
+      if (!component.props.hasOwnProperty("children")) component.props.children = []
+      const currentChildrenCount = component.props.children.length
+      const newChildrenCount = renderedAst.length
+
+      const maxElementsCount = Math.max(currentChildrenCount, newChildrenCount)
+      console.log({ renderedAst, props: component.props, maxElementsCount })
+      if (!maxElementsCount) return
+
       for (let index = 0; index < maxElementsCount; index++) {
         const currentElement = component.props.children[index]
-        const newElement = newTree[index]
+        const newElementAst = renderedAst[index]
 
-        if (!currentElement && !newElement) continue
-        else if (!currentElement && newElement) {
-          /** New element will be added */
-          if (newElement instanceof BaseComponent) {
-            /** New element is a component. We will render it, append it's node and push it to component children list */
-            const newComponent = Hier._innerRender(newElement)
-            component.props.children.push(newComponent)
-            component.node.appendChild(newComponent.node)
-            Hier._mountComponents(newComponent)
-          } else {
-            /** New element is an object */
-            const newElementRendered = Hier._createElementFromAstObject(newElement)
-            if (newElementRendered instanceof Node) {
-              component.node.appendChild(newElementRendered)
-              component.props.children.push(newElement)
-            } else {
-              console.warn("Unknown type", newElementRendered)
-            }
-          }
-        } else if (currentElement && !newElement) {
-          /** Current element will be removed */
-          if (currentElement instanceof BaseComponent) {
-            currentElement.beforeUnmount()
-          }
+        if (!currentElement && !newElementAst) continue
+        else if (!currentElement && newElementAst) {
+          /** New element must be added to the end */
+          console.log("%c[New element must be added]", LogStyles.success, newElementAst)
+          let _ast = Hier.createHierComponents([newElementAst])[0]
+          if (typeof newElementAst === "string") _ast = Hier._createTextAstObject(newElementAst)
+
+          const _newElement = Hier._createElementFromAstObject(_ast)
+          component.props.children.push(_ast)
+          component.node.appendChild(_newElement)
+        } else if (currentElement && !newElementAst) {
+          /** Element must be removed from the end */
+          console.log("%c[Element must be removed]", LogStyles.warning, currentElement)
+          if (currentElement instanceof BaseComponent) currentElement.beforeUnmount()
           currentElement.node.remove()
           component.props.children.pop()
         } else {
-          /** Current element may be replaced, moved or unchaned */
+          console.log("%c[Element may be changed]", LogStyles.base, currentElement, newElementAst)
+          /**
+           * Element may be replaced, moved or unchanged
+           */
 
           if (currentElement instanceof BaseComponent) {
             /** Current element is a component */
-            if (
-              newElement instanceof BaseComponent &&
-              currentElement.constructor.name === newElement.constructor.name
-            ) {
-              /** New element is a component either */
-              const newComponent = Hier._innerRender(newElement)
-              Hier.mergeComponentChildren(currentElement, newComponent.props.children)
+
+            if (typeof newElementAst.tagName === "function") {
+              if (currentElement.constructor.name === newElementAst.tagName.name) {
+                currentElement.props = Object.assign({}, currentElement.props, Util.cloneObject(newElementAst.props))
+              } else {
+                console.warn("We must replace component with the new one")
+              }
             } else {
-              /** New element is an object */
+              /** Let's replace current component with a tag obect */
+              const _ast = typeof newElementAst === "string" ? Hier._createTextAstObject(newElementAst) : newElementAst
+              const _newElement = Hier._createElementFromAstObject(_ast)
               currentElement.beforeUnmount()
-              const renderedNode = Hier._createElementFromAstObject(newElement)
-              currentElement.node.replaceWith(renderedNode)
+              currentElement.node.replaceWith(_newElement)
+              component.props.children[index] = _ast
             }
           } else {
-            /** Current element is an object */
-            if (newElement instanceof BaseComponent) {
-              /** New element is a component */
-              const newComponent = Hier._innerRender(newElement)
-              currentElement.node.replaceWith(newComponent.node)
-              Hier._mountComponents(newComponent)
-              component.props.children[index] = newComponent
-            } else if (currentElement.tagName === newElement.tagName) {
-              /** If current tag name is the same as a new tag name */
-              if (newElement.children) Hier.mergeElementChildren(currentElement, newElement.children)
+            /** Current element is NOT a component, it is a object */
+
+            if (typeof newElementAst === "string") {
+              if (currentElement.tagName === "text") {
+                /** Change text value */
+                currentElement.props.value = newElementAst
+                currentElement.node.nodeValue = newElementAst
+              } else {
+                /** Let's replace current object with a text */
+                const _ast = Hier._createTextAstObject(newElementAst)
+                const _newElement = Hier._createElementFromAstObject(_ast)
+                currentElement.node.replaceWith(_newElement)
+                component.props.children[index] = _ast
+              }
             } else {
-              /** If current tag name is NOT the same as a new name */
-              const renderedNode = Hier._createElementFromAstObject(newElement)
-              currentElement.node.replaceWith(renderedNode)
-              component.props.children[index] = newElement
+              /** New lement is an object and it is not a text */
+              currentElement.props = Object.assign({}, currentElement.props, Util.cloneObject(newElementAst.props))
+              Object.entries(newElementAst.props).map(([attr, value]) => {
+                if (/^on\w+/.test(attr)) return
+                currentElement.node.setAttribute(attr === "className" ? "class" : attr, value)
+              })
+
+              if (currentElement.children || newElementAst.children) {
+                /** Now we must to iterate an object children */
+                console.log(
+                  "%c[Now we must to iterate an object children]",
+                  LogStyles.success,
+                  currentElement,
+                  newElementAst
+                )
+
+                Hier._iterateAstObjectChildren(
+                  currentElement,
+                  currentElement.children || [],
+                  newElementAst.children || []
+                )
+              }
             }
           }
         }
       }
+
+      console.groupEnd()
+      console.timeEnd(`[Re-render time] [${component.constructor.name}]`)
     },
 
-    mergeElementChildren(element, newTree) {
-      const maxElementsCount = Math.max(element.children.length, newTree.length)
-      for (let index = 0; index < maxElementsCount; index++) {
-        const currentElement = element.children[index]
-        const newElement = newTree[index]
+    /**
+     * @param {object} elementWrapper
+     * @param {object[]|string[]} currentElements
+     * @param {object[]|string[]} newElements
+     */
+    _iterateAstObjectChildren(elementWrapper, currentElements, newElements) {
+      const maxElementsCount = Math.max(currentElements.length, newElements.length)
+      for (let _index = 0; _index < maxElementsCount; _index++) {
+        const currentElement = currentElements[_index]
+        const newElement = newElements[_index]
 
         if (!currentElement && !newElement) continue
         else if (!currentElement && newElement) {
-          /** New element will be added */
-          if (newElement instanceof BaseComponent) {
-            /** New element is a component. We will render it, append it's node and push it to component children list */
-            const newComponent = Hier._innerRender(newElement)
-            element.children.push(newComponent)
-            element.node.appendChild(newComponent.node)
-            Hier._mountComponents(newComponent)
+          /** New NESTED element must be added */
+          console.log("%c[New NESTED element must be added]", LogStyles.base, newElement)
+          if (typeof newElement.tagName === "function" && Util.getIsClass(newElement.tagName)) {
+            /** New component must be added to element children list */
           } else {
-            /** New element is an object */
-            const newElementRendered = Hier._createElementFromAstObject(newElement)
-            if (newElementRendered instanceof Node) {
-              element.node.appendChild(newElementRendered)
-              element.children.push(newElement)
-            } else {
-              console.warn("Unknown type", newElementRendered)
-            }
+            /** New element must be added */
+            let ast = newNestedElementAst
+            if (typeof newNestedElementAst === "string") Hier._createTextAstObject(newNestedElementAst)
+
+            const _newElement = Hier._createElementFromAstObject(ast)
+            elementWrapper.children.push(ast)
+            elementWrapper.node.appendChild(_newElement)
           }
         } else if (currentElement && !newElement) {
-          /** Current element will be removed */
-          if (currentElement instanceof BaseComponent) {
-            currentElement.beforeUnmount()
-          }
+          /** NESTED element must be removed */
+          console.log("%c[NESTED element must be removed]", LogStyles.base, currentElement)
+          if (currentElement instanceof BaseComponent) currentElement.beforeUnmount()
           currentElement.node.remove()
-          element.children.pop()
+          elementWrapper.children.pop()
         } else {
-          /** Current element may be replaced, moved or unchaned */
-          if (newElement instanceof BaseComponent) {
-            /** New element is a component */
-            if (
-              currentElement instanceof BaseComponent &&
-              currentElement.constructor.name === newElement.constructor.name
-            ) {
-              const newComponent = Hier._innerRender(newElement)
-              Hier.mergeComponentChildren(currentElement, newComponent.props.children)
+          /** Nested element may be replaced, moved or unchanged */
+          console.log("%c[Nested Element may be changed]", LogStyles.base, currentElement, newElement)
+
+          if (currentElement instanceof BaseComponent) {
+            /** Current element is a component */
+
+            if (typeof newElement.tagName === "function") {
+              if (currentElement.constructor.name === newElement.tagName.name) {
+                currentElement.props = Object.assign({}, currentElement.props, Util.cloneObject(newElement.props))
+              } else {
+                console.warn("We must replace component with the new one")
+              }
             } else {
-              // const newComponent = Hier._innerRender(newElement)
-              // currentElement.node.replaceWith(newComponent.node)
-              // element.children[index] = newComponent
-              // Hier._mountComponents(newComponent)
+              console.log("I AM HERE 1", currentElement, newElement)
+              /** Let's replace current component with a tag obect */
+              // const _ast = typeof newElement === "string" ? Hier._createTextAstObject(newElement) : newElement
+              // const _newElement = Hier._createElementFromAstObject(_ast)
+              // currentElement.beforeUnmount()
+              // currentElement.node.replaceWith(_newElement)
+              // component.props.children[index] = _ast
             }
-          } else if (currentElement.tagName === newElement.tagName) {
-            /** If current tag name is the same as a new tag name */
-            if (currentElement.tagName === "text") {
-              currentElement.node.nodeValue = newElement.props.value
+          } else {
+            /** Current element is NOT a component, it is a object */
+
+            if (typeof newElement === "string") {
+              if (currentElement.tagName === "text") {
+                /** Change text value */
+                currentElement.props.value = newElement
+                currentElement.node.nodeValue = newElement
+              } else {
+                /** Let's replace current object with a text */
+                const _ast = Hier._createTextAstObject(newElement)
+                const _newElement = Hier._createElementFromAstObject(_ast)
+                currentElement.node.replaceWith(_newElement)
+                elementWrapper.children[index] = _ast
+              }
             } else {
+              /** New lement is an object and it is not a text */
+              currentElement.props = Object.assign({}, currentElement.props, Util.cloneObject(newElement.props))
               Object.entries(newElement.props).map(([attr, value]) => {
                 if (/^on\w+/.test(attr)) return
-                currentElement.node.setAttribute(attr, value)
+                currentElement.node.setAttribute(attr === "className" ? "class" : attr, value)
               })
+
+              if (currentElement.children || newElement.children) {
+                /** Now we must to iterate an object children */
+                Hier._iterateAstObjectChildren(currentElement, currentElement.children || [], newElement.children || [])
+              }
             }
-            if (newElement.children) Hier.mergeElementChildren(currentElement, newElement.children)
-          } else {
-            console.log("%c[We need replace tag]", LogStyles.warning, currentElement, newElement)
-            /** If current tag name is NOT the same as a new name */
-            // const renderedNode = Hier._createElementFromAstObject(newElement)
-            // currentElement.node.replaceWith(renderedNode)
-            // element.children[index] = newElement
           }
         }
-
-        console.debug("%c[1]", LogStyles.base, currentElement, newElement)
       }
     },
-
-    // /**
-    //  * @deprecated
-    //  * @param {Node} rootA
-    //  * @param {Node} rootB
-    //  * @returns
-    //  */
-    // mergeNodes(rootA, rootB) {
-    //   const maxElementsCount = Math.max(
-    //     rootA.childNodes ? rootA.childNodes.length : 0,
-    //     rootB.childNodes ? rootB.childNodes.length : 0
-    //   )
-
-    //   if (!maxElementsCount) return rootA
-
-    //   const elementsA = Array.from(rootA.childNodes)
-    //   const elementsB = Array.from(rootB.childNodes)
-
-    //   for (let index = 0; index < maxElementsCount; index++) {
-    //     const element = elementsA[index]
-    //     const parallelElement = elementsB[index]
-
-    //     if (!element && !parallelElement) {
-    //       break
-    //     } else if (!element && parallelElement) {
-    //       /** New element has been added to the end */
-    //       console.debug("[Adding new element]: ", parallelElement)
-    //       rootA.appendChild(parallelElement)
-    //     } else if (element && !parallelElement) {
-    //       /** Element has been removed from the end */
-    //       console.debug("[Removing element]: ", element)
-    //       element.remove()
-    //     } else if (element.tagName !== parallelElement.tagName) {
-    //       /** unmount component and destroy the element */
-    //       console.debug("[Unmount component]: ", element)
-    //       if (element.$$component) element.$$component.beforeUnmount()
-    //       console.debug("[Mount component]: ", parallelElement)
-    //       element.replaceWith(parallelElement)
-    //       if (element.$$component) delete element.$$component
-    //       if (parallelElement.$$component) parallelElement.$$component.afterMount()
-    //     } else {
-    //       /** @todo Add KEY-mechanism */
-
-    //       if (element.$$component && parallelElement.$$component) {
-    //         const elementProps = Util.jsonSerialize(element.$$component.props)
-    //         const parallelElementProps = Util.jsonSerialize(parallelElement.$$component.props)
-    //         if (elementProps !== parallelElementProps) {
-    //           element.$$component.props = parallelElement.$$component.props
-    //         }
-    //       }
-
-    //       const elementAttrs = Util.getElementAttributes(element)
-    //       const parallelElementAttrs = Util.getElementAttributes(parallelElement)
-
-    //       if (JSON.stringify(elementAttrs) !== JSON.stringify(parallelElementAttrs)) {
-    //         /** We need to set new attributes to element (and change props if this element is component) */
-    //         Object.entries(parallelElementAttrs).map(([attr, value]) => element.setAttribute(attr, value))
-    //       }
-
-    //       if (element instanceof Text && element.nodeValue !== parallelElement.nodeValue) {
-    //         element.nodeValue = parallelElement.nodeValue
-    //       }
-
-    //       Hier.mergeNodes(element, parallelElement)
-    //     }
-    //   }
-
-    //   return rootA
-    // },
   }
 
   const Util = {
@@ -623,8 +616,14 @@ const Hier = (function () {
         },
         set: (currentValue) => {
           const prevProps = this._props
+          if (Util.jsonSerialize(prevProps) === Util.jsonSerialize(currentValue)) {
+            console.debug(`[Props didn't changed] [${this.constructor.name}]`)
+            return
+          }
+
           this._props = currentValue
-          console.debug(`Props was changed from:`, prevProps, `to:`, currentValue)
+          console.debug(`[${this.constructor.name}] Props was changed from:`, prevProps, `to:`, currentValue)
+          Hier.rerenderComponent(this)
         },
       })
 
@@ -676,9 +675,8 @@ const Hier = (function () {
           /**
            * RE-RENDER PROCESS
            */
-          Hier.updateComponent(this)
-
-          //   console.log(`State was changed from:`, prevState, `to:`, currentValue)
+          console.log(`[${this.constructor.name}] State was changed from:`, prevState, `to:`, currentValue)
+          Hier.rerenderComponent(this)
         },
       })
     }

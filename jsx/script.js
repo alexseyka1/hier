@@ -1,6 +1,5 @@
 "use strict"
 
-console.time("First rendering")
 const { html, Component, BaseComponent } = Hier
 
 class OrangeBg extends BaseComponent {
@@ -62,9 +61,7 @@ class Dynamic extends Component {
         <${Hello} firstName=${firstName} lastName=${lastName} />
       </fieldset>
 
-      ${firstName && firstName.trim().length
-        ? html`<h1 className="red">First Name Filled</h1>`
-        : html`<h2 className="blue">First Name is empty</h2>`}
+      ${firstName && firstName.trim().length ? html`<h1 className="red">First Name Filled</h1>` : null}
     `
   }
 }
@@ -116,4 +113,3 @@ class App extends Component {
 }
 
 Hier.render(App, document.getElementById("app"))
-console.timeEnd("First rendering")
