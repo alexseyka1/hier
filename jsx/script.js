@@ -31,7 +31,6 @@ class Hello extends BaseComponent {
 
 class LargeHeader extends BaseComponent {
   afterMount() {
-    console.log("Hello! I am here!", this.node)
     // fetch("https://jsonplaceholder.typicode.com/posts")
     //   .then((response) => response.json())
     //   .then((json) => console.log(json))

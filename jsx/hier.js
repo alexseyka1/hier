@@ -112,7 +112,6 @@ const Hier = (function () {
           const props = Object.assign({}, Util.cloneObject(object.props), { children: object.children })
           const nestedComponent = Hier.render(object.tagName, null, props)
           node.appendChild(nestedComponent.node)
-          nestedComponent.afterMount()
           object = nestedComponent
         }
 
@@ -124,54 +123,10 @@ const Hier = (function () {
       /** Or maybe here do we must pass AST tree to the children property? */
       component.props.children = Util.cloneObject(ast).map((object) => proceedAstObject(object, component.node))
       if (rootNode) rootNode.appendChild(component.node)
+      component.afterMount()
 
       __DEV__ && console.timeEnd(`⏰ ${componentName} rendered in`)
       __DEV__ && console.groupEnd()
-
-      return component
-    },
-
-    /**
-     * Renders AST objects to HTML nodes
-     * @param {object|string} item
-     * @returns {Node}
-     */
-    _createElementFromAstObject(item) {
-      let tagName = item.tagName || item
-      let node
-
-      if (typeof tagName === "string") {
-        node = Hier.createElement(tagName, item.props || null)
-      } else {
-        node = Hier._innerRender(item).node
-      }
-      if (!item.node) item.node = node
-
-      const children = (item.children || []).map((item) => Hier._createElementFromAstObject(item))
-      children.map((child) => child && node.appendChild(child))
-
-      return node
-    },
-
-    _innerRender(className) {
-      let component
-      if (Util.getIsClass(className)) component = new className()
-      else {
-        /** Clone component root node to avoid mounted node changing */
-        component = className
-        component.node = Hier.createElement(
-          component.node.tagName,
-          Util.getElementAttributes(component.node),
-          component.children || []
-        )
-      }
-
-      const ast = component.render()
-      const nestedComponents = Hier.createHierComponents(ast, component)
-
-      const rendered = nestedComponents.map((item) => Hier._createElementFromAstObject(item))
-      component.props.children = nestedComponents
-      rendered.map((element) => component.node.appendChild(element))
 
       return component
     },
@@ -275,15 +230,15 @@ const Hier = (function () {
       /** Create component root node for mounting */
       this.node = Hier.createElement("main", { "data-component": this.constructor.name })
 
-      console.debug("%c[Created Component]", LogStyles.light, this.constructor.name)
+      console.debug("%c[Created]", LogStyles.light, this.constructor.name)
     }
 
     afterMount() {
-      console.debug("%c[AfterMount]", LogStyles.light, this.constructor.name)
+      console.debug("%c[Mounted]", LogStyles.light, this.constructor.name)
     }
 
     beforeUnmount() {
-      console.debug("%c[BeforeUnmount]", LogStyles.light, this.constructor.name)
+      console.debug("%c[Unmounted]", LogStyles.light, this.constructor.name)
     }
 
     _initChangeableAttr(attr, defaultValue) {
