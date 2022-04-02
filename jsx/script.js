@@ -1,5 +1,6 @@
 "use strict"
 var __DEV__ = false
+var __DEBUG__ = false
 
 const { ast: html } = HierParser
 const { Component, BaseComponent, Util } = Hier
@@ -25,12 +26,13 @@ class Hello extends BaseComponent {
   render() {
     const name = this.props.firstName
     const surname = this.props.lastName
-    return html`Welcome to my test, <${FullName} firstName=${name} lastName=${surname}></FullName>`
+    return html`Welcome to my test, <${FullName} firstName=${name} lastName=${surname} />`
   }
 }
 
 class LargeHeader extends BaseComponent {
   afterMount() {
+    super.afterMount()
     // fetch("https://jsonplaceholder.typicode.com/posts")
     //   .then((response) => response.json())
     //   .then((json) => console.log(json))
@@ -68,7 +70,7 @@ class Dynamic extends Component {
       </fieldset>
 
       ${firstName && firstName.trim().length
-        ? html`<${LargeHeader}>First Name Filled</LargeHeader>`
+        ? html`<h1 className="red">First Name Filled</h1>`
         : html`<${SmallHeader}>First Name is empty ;D</SmallHeader>`}
     `
   }
