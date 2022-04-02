@@ -1,4 +1,10 @@
 const Hier = (function () {
+  /**
+   * Utility for setting function arguments required
+   */
+  const isRequired = () => {
+    throw new Error("Required function argument not specified.")
+  }
   const defaultLogStyles = [
     "color: #fff; background-color: #444; padding: 2px 4px; border-radius: 2px; margin-left: -4px",
   ]
@@ -10,10 +16,17 @@ const Hier = (function () {
   }
 
   /**
-   * HIER RENDERER
+   * Hier renderer
    */
   const Hier = {
-    createElement(tagName, attributes, children) {
+    /**
+     * Renders AST object to a specified HTML node
+     * @param {string} tagName
+     * @param {object} attributes tag attributes (properties) object
+     * @param {string|object[]} children Text string or array of AST objects
+     * @returns {HTMLElement|Text}
+     */
+    createElement(tagName = isRequired(), attributes = isRequired(), children) {
       if (tagName === "text") return document.createTextNode(attributes.value)
       const element = document.createElement(tagName)
 
@@ -28,7 +41,12 @@ const Hier = (function () {
       return element
     },
 
-    _setNodeAttributes(node, attributes) {
+    /**
+     * Set HTML node attributes, specified by key-value object
+     * @param {Node} node
+     * @param {object} attributes
+     */
+    _setNodeAttributes(node = isRequired(), attributes = isRequired()) {
       if (!Object.keys(attributes).length) return
       Object.entries(attributes || {}).map(([attribute, value]) => {
         if (/^on\w+/.test(attribute)) node[attribute.toLowerCase()] = value
@@ -39,15 +57,11 @@ const Hier = (function () {
       })
     },
 
-    createTextElement(value) {
-      return document.createTextNode(value)
-    },
-
-    _createTextAstObject(value) {
-      return { tagName: "text", props: { value } }
-    },
-
-    _mountComponents(component) {
+    /**
+     * Calls afterMount() method for specified component and all his children components
+     * @param {BaseComponent} component
+     */
+    _mountComponents(component = isRequired()) {
       if (component instanceof BaseComponent) {
         component.afterMount()
 
@@ -66,18 +80,25 @@ const Hier = (function () {
      * @param {object} props properties to pass to created component
      * @returns {BaseComponent} rendered component object
      */
-    render(className, rootNode, props) {
+    render(className = isRequired(), rootNode, props) {
       const componentName = className instanceof BaseComponent ? className.constructor.name : className.name
       __DEV__ && console.group(`%c[Render][${componentName}]`, LogStyles.light)
       __DEV__ && console.time(`⏰ ${componentName} rendered in`)
 
-      let component = className instanceof BaseComponent ? className : new className(props)
+      let component
+      if (className instanceof BaseComponent) component = className
+      else {
+        component = new className(props)
+        if (rootNode) component.afterCreated()
+      }
 
       const ast = component.render()
+      if (!ast) return component
       __DEV__ && console.debug(`%c[Rendered][${componentName}]`, LogStyles.success, component, ast)
 
       const renderAstObject = (object, node) => {
         if (typeof object.tagName === "string") {
+          /** Current object is a common HTML element */
           const elementNode = Hier.createElement(object.tagName, object.props)
           object.node = elementNode
           node.appendChild(elementNode)
@@ -90,6 +111,7 @@ const Hier = (function () {
           /** Current object is a component */
           const props = Object.assign({}, Util.cloneObject(object.props), { children: object.children })
           const nestedComponent = Hier.render(object instanceof BaseComponent ? object : object.tagName, null, props)
+          if (rootNode) nestedComponent.afterCreated()
           node.appendChild(nestedComponent.node)
           return nestedComponent
         }
@@ -107,10 +129,24 @@ const Hier = (function () {
       return component
     },
 
-    rerenderComponent(component) {
+    /**
+     * Re-renders specified component. Updates only changed parts of component content
+     * @param {BaseComponent} component
+     */
+    rerenderComponent(component = isRequired()) {
       const newComponent = Util.cloneObject(component)
 
-      const compareChildrenElements = (innerComponent, currentChildren, newChildren) => {
+      /**
+       * Component content reconcillation process. Finds out changed parts and renders it to DOM
+       * @param {BaseComponent|object} innerComponent Hier component or common tag AST object
+       * @param {BaseComponent[]|object[]} currentChildren
+       * @param {BaseComponent[]|object[]} newChildren
+       */
+      const compareChildrenElements = (
+        innerComponent = isRequired(),
+        currentChildren = isRequired(),
+        newChildren = isRequired()
+      ) => {
         __DEV__ &&
           console.log(
             "%c[Re-render triggered]",
@@ -155,7 +191,7 @@ const Hier = (function () {
             }
           } else {
             /**
-             * Element has been moved, replaced or unchanged
+             * [done] Element has been moved, replaced or unchanged
              */
             if (currentElement instanceof BaseComponent && newElement instanceof BaseComponent) {
               /** [done] Both elements are components */
@@ -196,7 +232,7 @@ const Hier = (function () {
                 newElement.afterMount()
               }
             } else if (currentElement.tagName === newElement.tagName) {
-              /** Both elements are equal common HTML elements (tags) */
+              /** [done] Both elements are equal common HTML elements (tags) */
               if (Util.jsonSerialize(currentElement.props) !== Util.jsonSerialize(newElement.props)) {
                 if (currentElement.tagName === "text") {
                   /** [done] If both elements are text strings */
@@ -270,17 +306,21 @@ const Hier = (function () {
     },
   }
 
+  /**
+   * Inner utilities
+   */
   const Util = {
     /**
      * Convert component props (or any other object) to JSON.
      * Replaces BaseComponent instances to string
-     * @param {*} obj
-     * @returns
+     * @param {any} obj
+     * @returns {string}
      */
-    jsonSerialize: function (obj, prettyPrint) {
+    jsonSerialize: function (obj = isRequired(), prettyPrint) {
       return JSON.stringify(obj, null, prettyPrint ? 2 : 0)
     },
     /**
+     * Depp clone any object
      * @param {object} obj
      * @returns {object}
      */
@@ -310,19 +350,23 @@ const Hier = (function () {
     },
 
     /**
+     * Finds out is function class or not
      * @param {Function} callable
      * @returns {boolean}
      */
-    getIsClass: function (callable) {
+    getIsClass: function (callable = isRequired()) {
       if (typeof callable !== "function") return false
       return /^class *\w+.*{/.test(callable)
     },
 
     /**
+     * Returns specified HTML node attributes
      * @param {HTMLElement} element
+     * @throws {TypeError}
      * @returns {object} Element attributes
      */
-    getElementAttributes: function (element) {
+    getElementAttributes: function (element = isRequired()) {
+      if (!(element instanceof HTMLElement)) throw new TypeError("Invalid object specified.")
       const attributes = element.attributes
       if (!attributes || !attributes.length) return {}
       const result = {}
@@ -335,7 +379,7 @@ const Hier = (function () {
   }
 
   /**
-   * HIER COMPONENTS
+   * Hier components
    */
   class BaseComponent {
     _props = {}
@@ -343,8 +387,13 @@ const Hier = (function () {
     children = []
     node = null
 
+    /**
+     * @constructor
+     * @param {object} props key-value properties object
+     * @throws {TypeError}
+     */
     constructor(props) {
-      if (props && typeof props !== "object") throw new Error("Please specify correct props object.")
+      if (props && typeof props !== "object") throw new TypeError("Please specify correct props object.")
       this._initChangeableAttr("_props")
       this._props = props || {}
 
@@ -356,43 +405,43 @@ const Hier = (function () {
           return this._props || {}
         },
         set: (currentValue) => {
-          const prevProps = this._props
+          const prevProps = Util.cloneObject(this._props)
           if (Util.jsonSerialize(prevProps) === Util.jsonSerialize(currentValue)) {
-            console.debug(`[Props didn't changed] [${this.constructor.name}]`)
+            __DEV__ && console.debug(`[Props didn't changed] [${this.constructor.name}]`)
             return
           }
 
           this._props = currentValue
-          __DEBUG__ &&
-            console.debug(
-              `[Props changed] [${this.constructor.name}]`,
-              LogStyles.light,
-              "from:",
-              prevProps,
-              `to:`,
-              currentValue
-            )
+          this.afterUpdate(currentValue, prevProps)
           Hier.rerenderComponent(this)
         },
       })
 
       /** Create component root node for mounting */
       this.node = Hier.createElement("main", { "data-component": this.constructor.name })
-      // this.node = document.createDocumentFragment()
     }
 
     afterCreated() {
-      __DEBUG__ && console.debug("%c[Created]", LogStyles.light, this.constructor.name)
+      __DEBUG__ && console.debug(`⭐️ %c[Created] [${this.constructor.name}]`, LogStyles.light)
     }
 
     afterMount() {
-      __DEBUG__ && console.debug("%c[Mounted]", LogStyles.light, this.constructor.name)
+      __DEBUG__ && console.debug(`✅ %c[Mounted] [${this.constructor.name}]`, LogStyles.light)
     }
 
     beforeUnmount() {
-      __DEBUG__ && console.debug("%c[Unmounted]", LogStyles.light, this.constructor.name)
+      __DEBUG__ && console.debug(`⛔️ %c[Unmounted] [${this.constructor.name}]`, LogStyles.light)
     }
 
+    afterUpdate(props, prevProps) {
+      __DEBUG__ && console.debug(`🔄 %c[Updated] [${this.constructor.name}]`, LogStyles.light, { props, prevProps })
+    }
+
+    /**
+     * @inner
+     * @param {string} attr
+     * @param {any} defaultValue
+     */
     _initChangeableAttr(attr, defaultValue) {
       Object.defineProperty(this, attr, {
         configurable: false,
@@ -428,24 +477,22 @@ const Hier = (function () {
           return this._state || {}
         },
         set: (currentValue) => {
-          const prevState = this._state
+          const prevState = Util.cloneObject(this._state)
           this._state = currentValue
-
-          /**
-           * RE-RENDER PROCESS
-           */
-          __DEBUG__ &&
-            console.log(
-              `%c[State changed] [${this.constructor.name}]`,
-              LogStyles.light,
-              "from:",
-              prevState,
-              `to:`,
-              currentValue
-            )
+          this.afterUpdate(this._props, this._props, currentValue, prevState)
           Hier.rerenderComponent(this)
         },
       })
+    }
+
+    afterUpdate(props, prevProps, state, prevState) {
+      __DEBUG__ &&
+        console.debug(`🔄 %c[Updated] [${this.constructor.name}]`, LogStyles.light, {
+          props,
+          prevProps,
+          state,
+          prevState,
+        })
     }
 
     /**

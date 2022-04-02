@@ -7,7 +7,6 @@ const { Component, BaseComponent, Util } = Hier
 
 class OrangeBg extends BaseComponent {
   render() {
-    console.log(this.props.children)
     return html`<div class="I am wrapper">${this.props.children}</div>`
   }
 }
@@ -76,6 +75,8 @@ class Dynamic extends Component {
   }
 }
 
+class Void extends BaseComponent {}
+
 class Fieldset extends BaseComponent {
   render() {
     const legend = this.props.legend ? html`<legend>${this.props.legend}</legend>` : ""
@@ -98,48 +99,49 @@ class App extends Component {
     const changeLegend = () => this.setState({ legendText: Math.random().toString(36).slice(2) })
 
     /** Full test */
-    // return html`Before Application Test
-    //   <hr />
-    //   <form action="/some/cool/url" method="post">
-    //     <${Fieldset} legend=${legendText}>
-    //       <${OrangeBg} testText="Hello from props">
-    //         <main>
-    //           <${Dynamic} />
-    //         </main>
-    //       </OrangeBg>
+    return html`Before Application Test
+      <hr />
+      <${Void} />
+      <form action="/some/cool/url" method="post">
+        <${Fieldset} legend=${legendText}>
+          <${OrangeBg} testText="Hello from props">
+            <main>
+              <${Dynamic} />
+            </main>
+          </OrangeBg>
 
-    //       <${Hello} firstName="Alexsey" lastName="Gaidai" />
+          <${Hello} firstName="Alexsey" lastName="Gaidai" />
 
-    //       <footer>
-    //         <button type="button" onClick=${clickButton}>${buttonText}</button>
-    //       </footer>
-    //     </Fieldset>
-    //   </form>
-    //   <hr />
-    //   <div>
-    //     <button type="button" onClick=${() => changeLegend()}>Change legend text</button>
-    //   </div>
-    //   After Application Text`
+          <footer>
+            <button type="button" onClick=${clickButton}>${buttonText}</button>
+          </footer>
+        </Fieldset>
+      </form>
+      <hr />
+      <div>
+        <button type="button" onClick=${() => changeLegend()}>Change legend text</button>
+      </div>
+      After Application Text`
 
-    return html`
-    Hello
-      <${Fieldset} legend=${legendText}>
-        <header>
-          <${SmallHeader}>
-            I am
-          </SmallHeader>
-          <${LargeHeader}>header</LargeHeader>
-        </header>
-        <main>
-          I am main content
-          <${Dynamic} />
-        </main>
-        <footer>
-          Here is the footer
-          <button type="button" onClick=${() => changeLegend()}>Change legend text</button>
-        </footer>
-      </Fieldset>
-    `
+    // return html`
+    // Hello
+    //   <${Fieldset} legend=${legendText}>
+    //     <header>
+    //       <${SmallHeader}>
+    //         I am
+    //       </SmallHeader>
+    //       <${LargeHeader}>header</LargeHeader>
+    //     </header>
+    //     <main>
+    //       I am main content
+    //       <${Dynamic} />
+    //     </main>
+    //     <footer>
+    //       Here is the footer
+    //       <button type="button" onClick=${() => changeLegend()}>Change legend text</button>
+    //     </footer>
+    //   </Fieldset>
+    // `
   }
 }
 
