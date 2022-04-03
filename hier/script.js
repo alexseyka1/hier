@@ -68,9 +68,7 @@ class Dynamic extends Component {
         <${Hello} firstName=${firstName} lastName=${lastName} />
       </fieldset>
 
-      ${
-        firstName && firstName.trim().length ? html`<${LargeHeader}>First Name Filled</LargeHeader>` : null // html`<${SmallHeader}>First Name is empty ;D</SmallHeader>`
-      }
+      <div>${firstName && firstName.trim().length ? html`<${LargeHeader}>First Name Filled</LargeHeader>` : null}</div>
     `
   }
 }
@@ -122,26 +120,6 @@ class App extends Component {
         <button type="button" onClick=${() => changeLegend()}>Change legend text</button>
       </div>
       After Application Text`
-
-    // return html`
-    // Hello
-    //   <${Fieldset} legend=${legendText}>
-    //     <header>
-    //       <${SmallHeader}>
-    //         I am
-    //       </SmallHeader>
-    //       <${LargeHeader}>header</LargeHeader>
-    //     </header>
-    //     <main>
-    //       I am main content
-    //       <${Dynamic} />
-    //     </main>
-    //     <footer>
-    //       Here is the footer
-    //       <button type="button" onClick=${() => changeLegend()}>Change legend text</button>
-    //     </footer>
-    //   </Fieldset>
-    // `
   }
 }
 

@@ -1,4 +1,7 @@
 const Hier = (function () {
+  const isDev = () => typeof __DEV__ !== "undefined" && __DEV__ === true
+  const isDebug = () => typeof __DEBUG__ !== "undefined" && __DEBUG__ === true
+
   /**
    * Utility for setting function arguments required
    */
@@ -33,11 +36,11 @@ const Hier = (function () {
      * @param {string|object[]} children Text string or array of AST objects
      * @returns {HTMLElement|Text}
      */
-    createElement(tagName = isRequired(), attributes = isRequired(), children) {
+    createElement(tagName = isRequired(), attributes, children) {
       if (tagName === "text") return document.createTextNode(attributes.value)
       const element = document.createElement(tagName)
 
-      Hier._setNodeAttributes(element, attributes)
+      if (typeof attributes === "object") Hier._setNodeAttributes(element, attributes)
 
       if (children) {
         children.map((child) => {
@@ -54,7 +57,7 @@ const Hier = (function () {
      */
     _deleteUnnecessaryNode(node = isRequired()) {
       if (node.hasChildNodes()) {
-        while (node.firstChild) node.removeChild(node.firstChild)
+        node.childNodes.forEach((child) => Hier._deleteUnnecessaryNode(child))
       }
       node.remove()
     },
@@ -67,6 +70,7 @@ const Hier = (function () {
     _setNodeAttributes(node = isRequired(), attributes = isRequired()) {
       if (!Object.keys(attributes).length) return
       Object.entries(attributes || {}).map(([attribute, value]) => {
+        if (typeof value !== "string" && typeof value !== "function") return
         if (/^on\w+/.test(attribute)) node[attribute.toLowerCase()] = value
         else {
           if (attribute === "className") attribute = "class"
@@ -97,18 +101,23 @@ const Hier = (function () {
      * @returns {Node|BaseComponent}
      */
     _renderAstObject(object = isRequired(), node = isRequired(), rootNode) {
-      if (typeof object.tagName === "string") {
-        /** Current object is a common HTML element */
-        const elementNode = Hier.createElement(object.tagName, object.props)
-        object.node = elementNode
+      if (Array.isArray(object) && object.length === 1) object = object.pop()
+
+      if (typeof object !== "object") {
+        const elementNode = Hier.createElement("text", { value: object })
         node.appendChild(elementNode)
-
-        if (object.children) {
-          object.children = Util.cloneObject(object.children).map((child) => Hier._renderAstObject(child, elementNode))
-        }
-
         /** Free memory */
         free(elementNode)
+        return object
+      } else if (typeof object.tagName === "string") {
+        /** Current object is a common HTML element */
+        object.node = Hier.createElement(object.tagName, object.props)
+        node.appendChild(object.node)
+
+        if (object.children) {
+          object.children = Util.cloneObject(object.children).map((child) => Hier._renderAstObject(child, object.node))
+        }
+
         return object
       } else {
         /** Current object is a component */
@@ -129,8 +138,8 @@ const Hier = (function () {
      */
     render(className = isRequired(), rootNode, props) {
       const componentName = className instanceof BaseComponent ? className.constructor.name : className.name
-      __DEV__ && console.group(`%c[Render][${componentName}]`, LogStyles.light)
-      __DEV__ && console.time(`⏰ ${componentName} rendered in`)
+      isDev() && console.group(`%c[Render][${componentName}]`, LogStyles.light)
+      isDev() && console.time(`⏰ ${componentName} rendered in`)
 
       let component
       if (className instanceof BaseComponent) component = className
@@ -141,7 +150,7 @@ const Hier = (function () {
 
       const ast = component.render()
       if (!ast) return component
-      __DEV__ && console.debug(`%c[Rendered][${componentName}]`, LogStyles.success, component, ast)
+      isDev() && console.debug(`%c[Rendered][${componentName}]`, LogStyles.success, component, ast)
 
       component.children = ast.map((object) => Hier._renderAstObject(object, component.node, rootNode))
       if (rootNode) {
@@ -149,8 +158,8 @@ const Hier = (function () {
         Hier._mountComponents(component)
       }
 
-      __DEV__ && console.timeEnd(`⏰ ${componentName} rendered in`)
-      __DEV__ && console.groupEnd()
+      isDev() && console.timeEnd(`⏰ ${componentName} rendered in`)
+      isDev() && console.groupEnd()
 
       /** Free memory */
       free(componentName, ast)
@@ -162,27 +171,24 @@ const Hier = (function () {
      * @param {BaseComponent} component
      */
     rerenderComponent(component = isRequired()) {
-      const newComponent = Util.cloneObject(component)
-
       /**
        * Component content reconcillation process. Finds out changed parts and renders it to DOM
        * @param {BaseComponent|object} innerComponent Hier component or common tag AST object
        * @param {BaseComponent[]|object[]} currentChildren
        * @param {BaseComponent[]|object[]} newChildren
        */
-      const compareChildrenElements = (
-        innerComponent = isRequired(),
-        currentChildren = isRequired(),
-        newChildren = isRequired()
-      ) => {
-        __DEV__ &&
-          console.log(
+      const compareChildrenElements = (innerComponent = isRequired(), currentChildren, newChildren) => {
+        isDev() &&
+          console.debug(
             "%c[Re-render triggered]",
             LogStyles.success,
             innerComponent,
             Util.cloneObject(currentChildren),
             Util.cloneObject(newChildren)
           )
+        if (typeof innerComponent.children === "undefined") innerComponent.children = []
+        if (typeof currentChildren === "undefined") currentChildren = []
+        if (typeof newChildren === "undefined") newChildren = []
 
         const maxChildrenCount = Math.max(currentChildren.length, newChildren.length)
         for (let index = 0; index < maxChildrenCount; index++) {
@@ -194,15 +200,14 @@ const Hier = (function () {
             /**
              * [done] New element will be added
              */
-            if (innerComponent instanceof BaseComponent) innerComponent.children.push(newElement)
-            else innerComponent.children.push(newElement)
+            innerComponent.children.push(newElement)
 
             innerComponent.node.appendChild(newElement.node)
             if (newElement instanceof BaseComponent) {
-              __DEV__ && console.debug("%c + [New component added]", LogStyles.light, newElement)
+              isDev() && console.debug("%c + [New component added]", LogStyles.light, newElement)
               newElement.afterMount()
             } else {
-              __DEV__ && console.debug("%c + [New element added]", LogStyles.light, newElement)
+              isDev() && console.debug("%c + [New element added]", LogStyles.light, newElement)
             }
           } else if (currentElement && !newElement) {
             /**
@@ -214,15 +219,14 @@ const Hier = (function () {
               Hier._deleteUnnecessaryNode(currentElement.node)
               free(currentElement.node)
             }
-
             innerComponent.children.pop()
             /** Free memory */
             Hier._deleteUnnecessaryNode(currentElement.node)
             free(currentElement.node, currentElement)
             if (currentElement instanceof BaseComponent) {
-              __DEV__ && console.debug("%c - [Component removed]", LogStyles.base, currentElement)
+              isDev() && console.debug("%c - [Component removed]", LogStyles.base, currentElement)
             } else {
-              __DEV__ && console.debug("%c - [Element removed]", LogStyles.base, currentElement)
+              isDev() && console.debug("%c - [Element removed]", LogStyles.base, currentElement)
             }
           } else {
             /**
@@ -233,7 +237,7 @@ const Hier = (function () {
               if (currentElement.constructor.name === newElement.constructor.name) {
                 /** [done] Equal components */
                 if (Util.jsonSerialize(currentElement.props) === Util.jsonSerialize(newElement.props)) {
-                  __DEV__ &&
+                  isDev() &&
                     console.debug(
                       "%c = [Component is unchanged]",
                       LogStyles.light,
@@ -242,7 +246,7 @@ const Hier = (function () {
                       Util.cloneObject(newElement.props)
                     )
                 } else {
-                  __DEV__ &&
+                  isDev() &&
                     console.debug(
                       "%c -> [Component props changed]",
                       LogStyles.base,
@@ -259,12 +263,11 @@ const Hier = (function () {
                 }
               } else {
                 /** [done] Current component has been replaced by another one */
-                __DEV__ &&
+                isDev() &&
                   console.debug("%c <=> [Component replaced]", LogStyles.base, currentElement, " -> ", newElement)
                 currentElement.beforeUnmount()
 
-                if (innerComponent instanceof BaseComponent) innerComponent.children[index] = newElement
-                else innerComponent.children[index] = newElement
+                innerComponent.children[index] = newElement
 
                 currentElement.node.replaceWith(newElement.node)
                 newElement.afterMount()
@@ -278,7 +281,7 @@ const Hier = (function () {
                 if (currentElement.tagName === "text") {
                   /** [done] If both elements are text strings */
                   currentElement.node.nodeValue = newElement.props.value
-                  __DEV__ &&
+                  isDev() &&
                     console.debug(
                       "%c <T> [Text changed]",
                       LogStyles.warning,
@@ -288,7 +291,7 @@ const Hier = (function () {
                     )
                 } else {
                   Hier._setNodeAttributes(currentElement.node, Util.getElementAttributes(newElement.node))
-                  __DEV__ &&
+                  isDev() &&
                     console.debug(
                       "%c <-> [Tag attributes replaced]",
                       LogStyles.warning,
@@ -308,8 +311,8 @@ const Hier = (function () {
               }
 
               if (currentElement.children || newElement.children) {
-                __DEV__ &&
-                  console.log(
+                isDev() &&
+                  console.debug(
                     "%c[Now we must iterate element children]",
                     LogStyles.light,
                     innerComponent,
@@ -320,11 +323,9 @@ const Hier = (function () {
               }
             } else if (!(currentElement instanceof BaseComponent) && newElement instanceof BaseComponent) {
               /** [done] Common HTML element has been replaced by component */
-              __DEV__ &&
+              isDev() &&
                 console.debug("%c <-> [Element replaced by component]", LogStyles.warning, currentElement, newElement)
-              if (innerComponent instanceof BaseComponent) innerComponent.children[index] = newElement
-              else innerComponent.children[index] = newElement
-
+              innerComponent.children[index] = newElement
               currentElement.node.replaceWith(newElement.node)
               newElement.afterMount()
               /** Free memory */
@@ -332,11 +333,23 @@ const Hier = (function () {
               free(currentElement.node)
             } else if (currentElement instanceof BaseComponent && !(newElement instanceof BaseComponent)) {
               /** [done] Component has been replaced by common HTML tag */
-              __DEV__ &&
+              isDev() &&
                 console.debug("%c <-> [Component replaced by element]", LogStyles.warning, currentElement, newElement)
               currentElement.beforeUnmount()
-              if (innerComponent instanceof BaseComponent) innerComponent.children[index] = newElement
-              else innerComponent.children[index] = newElement
+              innerComponent.children[index] = newElement
+              currentElement.node.replaceWith(newElement.node)
+              // /** Free memory */
+              Hier._deleteUnnecessaryNode(currentElement.node)
+              free(currentElement.node)
+            } else if (
+              !(currentElement instanceof BaseComponent) &&
+              !(newElement instanceof BaseComponent) &&
+              currentElement.tagName !== newElement.tagName
+            ) {
+              /** Different elements specified */
+              isDev() &&
+                console.debug("%c <-> [Element replaced by another one]", LogStyles.warning, currentElement, newElement)
+              innerComponent.children[index] = newElement
 
               currentElement.node.replaceWith(newElement.node)
               /** Free memory */
@@ -352,13 +365,15 @@ const Hier = (function () {
         }
       }
 
+      const ast = component.render()
       const _currentChildren = component.children || []
-      const _newComponentRendered = Hier.render(newComponent)
-      const _newChildren = _newComponentRendered.children || []
+      const tempNode = Hier.createElement("main")
+      const _newChildren = ast.map((object) => Hier._renderAstObject(object, tempNode))
 
       compareChildrenElements(component, _currentChildren, _newChildren)
+      console.log(component, tempNode)
       /** Free memory */
-      free(_currentChildren, _newComponentRendered, _newChildren)
+      free(ast, _currentChildren, _newChildren, tempNode)
     },
   }
 
@@ -463,7 +478,7 @@ const Hier = (function () {
         set: (currentValue) => {
           const prevProps = Util.cloneObject(this._props)
           if (Util.jsonSerialize(prevProps) === Util.jsonSerialize(currentValue)) {
-            __DEV__ && console.debug(`[Props didn't changed] [${this.constructor.name}]`)
+            isDev() && console.debug(`[Props didn't changed] [${this.constructor.name}]`)
             return
           }
 
@@ -474,23 +489,23 @@ const Hier = (function () {
       })
 
       /** Create component root node for mounting */
-      this.node = Hier.createElement("main", { "data-component": this.constructor.name })
+      this.node = Hier.createElement("main", Object.assign({ "data-component": this.constructor.name }, props))
     }
 
     afterCreated() {
-      __DEBUG__ && console.debug(`⭐️ %c[Created] [${this.constructor.name}]`, LogStyles.light)
+      isDebug() && console.debug(`⭐️ %c[Created] [${this.constructor.name}]`, LogStyles.light)
     }
 
     afterMount() {
-      __DEBUG__ && console.debug(`✅ %c[Mounted] [${this.constructor.name}]`, LogStyles.light)
+      isDebug() && console.debug(`✅ %c[Mounted] [${this.constructor.name}]`, LogStyles.light)
     }
 
     beforeUnmount() {
-      __DEBUG__ && console.debug(`⛔️ %c[Unmounted] [${this.constructor.name}]`, LogStyles.light)
+      isDebug() && console.debug(`⛔️ %c[Unmounted] [${this.constructor.name}]`, LogStyles.light)
     }
 
     afterUpdate(props, prevProps) {
-      __DEBUG__ && console.debug(`🔄 %c[Updated] [${this.constructor.name}]`, LogStyles.light, { props, prevProps })
+      isDebug() && console.debug(`🔄 %c[Updated] [${this.constructor.name}]`, LogStyles.light, { props, prevProps })
     }
 
     /**
@@ -542,7 +557,7 @@ const Hier = (function () {
     }
 
     afterUpdate(props, prevProps, state, prevState) {
-      __DEBUG__ &&
+      isDebug() &&
         console.debug(`🔄 %c[Updated] [${this.constructor.name}]`, LogStyles.light, {
           props,
           prevProps,

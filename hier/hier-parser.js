@@ -164,7 +164,6 @@ function HierParser() {
       } else {
         value = value ? value.slice(1, -1) : true
       }
-      if (key.startsWith("on")) key = key.toLowerCase()
 
       props[key] = value
       str = str.slice(0, match.index) + str.slice(match.index + match[0].length)
