@@ -1,4 +1,4 @@
-const HierParser = (function () {
+function HierParser() {
   this.PLACEHOLDER = `___PLACEHOLDER_${Date.now()}___`
 
   /**
@@ -7,9 +7,7 @@ const HierParser = (function () {
    * @param  {...any} values
    * @returns {object} AST tree of parsed HTML
    */
-  this.ast = function (splits, ...values) {
-    return this.parseString(splits.join(this.PLACEHOLDER), values)
-  }
+  const ast = (splits, ...values) => this.parseString(splits.join(this.PLACEHOLDER), values)
 
   /**
    * Parses HTML string from JS template literal
@@ -17,7 +15,7 @@ const HierParser = (function () {
    * @param  {...any} values
    * @returns {Node[]} HTML Nodes list
    */
-  this.html = function (splits, ...values) {
+  const html = (splits, ...values) => {
     const ast = this.ast(splits, ...values)
     return ast.map((item) => this.createElementFromAstObject(item)).filter((item) => item)
   }
@@ -37,7 +35,7 @@ const HierParser = (function () {
           return Hier.createElement(tagName, item.props || null, children || [])
         }
       } else {
-        return Hier.createTextElement(item)
+        return document.createTextNode(item)
       }
     }
 
@@ -214,8 +212,5 @@ const HierParser = (function () {
     }
   }
 
-  return {
-    ast: this.ast,
-    html: this.html,
-  }
-})()
+  return { ast, html }
+}

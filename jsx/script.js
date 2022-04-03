@@ -2,7 +2,7 @@
 var __DEV__ = false
 var __DEBUG__ = false
 
-const { ast: html } = HierParser
+const { ast: html } = new HierParser()
 const { Component, BaseComponent, Util } = Hier
 
 class OrangeBg extends BaseComponent {
@@ -68,9 +68,9 @@ class Dynamic extends Component {
         <${Hello} firstName=${firstName} lastName=${lastName} />
       </fieldset>
 
-      ${firstName && firstName.trim().length
-        ? html`<h1 className="red">First Name Filled</h1>`
-        : html`<${SmallHeader}>First Name is empty ;D</SmallHeader>`}
+      ${
+        firstName && firstName.trim().length ? html`<${LargeHeader}>First Name Filled</LargeHeader>` : null // html`<${SmallHeader}>First Name is empty ;D</SmallHeader>`
+      }
     `
   }
 }

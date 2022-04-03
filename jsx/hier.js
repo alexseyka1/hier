@@ -2,8 +2,15 @@ const Hier = (function () {
   /**
    * Utility for setting function arguments required
    */
-  const isRequired = () => {
+  function isRequired() {
     throw new Error("Required function argument not specified.")
+  }
+  /**
+   * Resets specified variables and frees memory
+   * @param  {...any} values
+   */
+  function free(...values) {
+    values.map((item) => (item = null))
   }
   const defaultLogStyles = [
     "color: #fff; background-color: #444; padding: 2px 4px; border-radius: 2px; margin-left: -4px",
@@ -42,6 +49,17 @@ const Hier = (function () {
     },
 
     /**
+     * Deletes specified HTML node and all its children
+     * @param {Node} node
+     */
+    _deleteUnnecessaryNode(node = isRequired()) {
+      if (node.hasChildNodes()) {
+        while (node.firstChild) node.removeChild(node.firstChild)
+      }
+      node.remove()
+    },
+
+    /**
      * Set HTML node attributes, specified by key-value object
      * @param {Node} node
      * @param {object} attributes
@@ -72,6 +90,35 @@ const Hier = (function () {
         component.children.map(Hier._mountComponents)
       }
     },
+    /**
+     * Renders AST object to specified HTML node or component
+     * @param {object} object
+     * @param {Node} node
+     * @returns {Node|BaseComponent}
+     */
+    _renderAstObject(object = isRequired(), node = isRequired(), rootNode) {
+      if (typeof object.tagName === "string") {
+        /** Current object is a common HTML element */
+        const elementNode = Hier.createElement(object.tagName, object.props)
+        object.node = elementNode
+        node.appendChild(elementNode)
+
+        if (object.children) {
+          object.children = Util.cloneObject(object.children).map((child) => Hier._renderAstObject(child, elementNode))
+        }
+
+        /** Free memory */
+        free(elementNode)
+        return object
+      } else {
+        /** Current object is a component */
+        const props = Object.assign({}, Util.cloneObject(object.props), { children: object.children })
+        const nestedComponent = Hier.render(object instanceof BaseComponent ? object : object.tagName, null, props)
+        if (rootNode) nestedComponent.afterCreated()
+        node.appendChild(nestedComponent.node)
+        return nestedComponent
+      }
+    },
 
     /**
      * Renders component object
@@ -96,28 +143,7 @@ const Hier = (function () {
       if (!ast) return component
       __DEV__ && console.debug(`%c[Rendered][${componentName}]`, LogStyles.success, component, ast)
 
-      const renderAstObject = (object, node) => {
-        if (typeof object.tagName === "string") {
-          /** Current object is a common HTML element */
-          const elementNode = Hier.createElement(object.tagName, object.props)
-          object.node = elementNode
-          node.appendChild(elementNode)
-
-          if (object.children) {
-            object.children = Util.cloneObject(object.children).map((child) => renderAstObject(child, elementNode))
-          }
-          return object
-        } else {
-          /** Current object is a component */
-          const props = Object.assign({}, Util.cloneObject(object.props), { children: object.children })
-          const nestedComponent = Hier.render(object instanceof BaseComponent ? object : object.tagName, null, props)
-          if (rootNode) nestedComponent.afterCreated()
-          node.appendChild(nestedComponent.node)
-          return nestedComponent
-        }
-      }
-
-      component.children = ast.map((object) => renderAstObject(object, component.node))
+      component.children = ast.map((object) => Hier._renderAstObject(object, component.node, rootNode))
       if (rootNode) {
         rootNode.appendChild(component.node)
         Hier._mountComponents(component)
@@ -126,6 +152,8 @@ const Hier = (function () {
       __DEV__ && console.timeEnd(`⏰ ${componentName} rendered in`)
       __DEV__ && console.groupEnd()
 
+      /** Free memory */
+      free(componentName, ast)
       return component
     },
 
@@ -180,10 +208,17 @@ const Hier = (function () {
             /**
              * [done] Some element has been removed
              */
-            if (currentElement instanceof BaseComponent) currentElement.beforeUnmount()
-            if (innerComponent instanceof BaseComponent) innerComponent.children.pop()
-            else innerComponent.children.pop()
-            currentElement.node.remove()
+            if (currentElement instanceof BaseComponent) {
+              currentElement.beforeUnmount()
+              /** Free memory */
+              Hier._deleteUnnecessaryNode(currentElement.node)
+              free(currentElement.node)
+            }
+
+            innerComponent.children.pop()
+            /** Free memory */
+            Hier._deleteUnnecessaryNode(currentElement.node)
+            free(currentElement.node, currentElement)
             if (currentElement instanceof BaseComponent) {
               __DEV__ && console.debug("%c - [Component removed]", LogStyles.base, currentElement)
             } else {
@@ -218,6 +253,9 @@ const Hier = (function () {
 
                   currentElement.props = Util.cloneObject(newElement.props)
                   /** Here the component must trigger its re-render */
+                  /** Free memory */
+                  Hier._deleteUnnecessaryNode(newElement.node)
+                  free(newElement.node, newElement)
                 }
               } else {
                 /** [done] Current component has been replaced by another one */
@@ -230,6 +268,9 @@ const Hier = (function () {
 
                 currentElement.node.replaceWith(newElement.node)
                 newElement.afterMount()
+                /** Free memory */
+                Hier._deleteUnnecessaryNode(currentElement.node)
+                free(currentElement.node)
               }
             } else if (currentElement.tagName === newElement.tagName) {
               /** [done] Both elements are equal common HTML elements (tags) */
@@ -260,6 +301,10 @@ const Hier = (function () {
                 if (currentChildren.node) {
                   Hier._setNodeAttributes(currentChildren.node, newElement.props)
                 }
+
+                /** Free memory */
+                Hier._deleteUnnecessaryNode(newElement.node)
+                free(newElement.node, newElement)
               }
 
               if (currentElement.children || newElement.children) {
@@ -282,6 +327,9 @@ const Hier = (function () {
 
               currentElement.node.replaceWith(newElement.node)
               newElement.afterMount()
+              /** Free memory */
+              Hier._deleteUnnecessaryNode(currentElement.node)
+              free(currentElement.node)
             } else if (currentElement instanceof BaseComponent && !(newElement instanceof BaseComponent)) {
               /** [done] Component has been replaced by common HTML tag */
               __DEV__ &&
@@ -291,10 +339,16 @@ const Hier = (function () {
               else innerComponent.children[index] = newElement
 
               currentElement.node.replaceWith(newElement.node)
+              /** Free memory */
+              Hier._deleteUnnecessaryNode(currentElement.node)
+              free(currentElement.node)
             } else {
               console.debug("%c ??? [Unknown option]", LogStyles.warning, currentElement, newElement)
             }
           }
+
+          /** Free memory */
+          free(currentElement, newElement, index)
         }
       }
 
@@ -303,6 +357,8 @@ const Hier = (function () {
       const _newChildren = _newComponentRendered.children || []
 
       compareChildrenElements(component, _currentChildren, _newChildren)
+      /** Free memory */
+      free(_currentChildren, _newComponentRendered, _newChildren)
     },
   }
 
@@ -332,7 +388,7 @@ const Hier = (function () {
         newComponent._state = obj._state || {}
         newObj = newComponent
       } else if (obj instanceof Node) {
-        newObj = obj.cloneNode(true)
+        newObj = obj.cloneNode()
       } else {
         newObj = Object.assign({}, obj || {})
       }
