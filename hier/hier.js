@@ -150,6 +150,7 @@ const Hier = (function () {
 
       const ast = component.render()
       if (!ast) return component
+
       isDev() && console.debug(`%c[Rendered][${componentName}]`, LogStyles.success, component, ast)
 
       component.children = ast.map((object) => Hier._renderAstObject(object, component.node, rootNode))
@@ -366,13 +367,15 @@ const Hier = (function () {
       }
 
       const ast = component.render()
+      if (!ast) return
+
       const _currentChildren = component.children || []
-      const tempNode = Hier.createElement("main")
+      const tempNode = Hier.createElement("template")
       const _newChildren = ast.map((object) => Hier._renderAstObject(object, tempNode))
 
       compareChildrenElements(component, _currentChildren, _newChildren)
-      console.log(component, tempNode)
       /** Free memory */
+      Hier._deleteUnnecessaryNode(tempNode)
       free(ast, _currentChildren, _newChildren, tempNode)
     },
   }
@@ -477,7 +480,7 @@ const Hier = (function () {
         },
         set: (currentValue) => {
           const prevProps = Util.cloneObject(this._props)
-          if (Util.jsonSerialize(prevProps) === Util.jsonSerialize(currentValue)) {
+          if (Util.jsonSerialize(prevProps) == Util.jsonSerialize(currentValue)) {
             isDev() && console.debug(`[Props didn't changed] [${this.constructor.name}]`)
             return
           }
@@ -549,6 +552,11 @@ const Hier = (function () {
         },
         set: (currentValue) => {
           const prevState = Util.cloneObject(this._state)
+          if (Util.jsonSerialize(prevState) == Util.jsonSerialize(currentValue)) {
+            isDev() && console.debug(`[State didn't changed] [${this.constructor.name}]`)
+            return
+          }
+
           this._state = currentValue
           this.afterUpdate(this._props, this._props, currentValue, prevState)
           Hier.rerenderComponent(this)
