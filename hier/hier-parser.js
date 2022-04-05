@@ -17,7 +17,9 @@ function HierParser() {
    */
   const html = (splits, ...values) => {
     const ast = this.ast(splits, ...values)
-    return ast.map((item) => this.createElementFromAstObject(item)).filter((item) => item)
+    let response = new Array(ast.length)
+    for (let item of ast) this.createElementFromAstObject(item)
+    return response.filter((item) => item)
   }
 
   /**
@@ -29,7 +31,8 @@ function HierParser() {
   this.createElementFromAstObject = function (astObject) {
     const createElement = (item) => {
       if (typeof item === "object") {
-        const children = (item.children || []).map((item) => createElement(item))
+        const children = new Array((item.children || []).length)
+        for (let child of item.children) createElement(child)
         let tagName = item.tagName || item
         if (typeof tagName === "string") {
           return Hier.createElement(tagName, item.props || null, children || [])
@@ -197,7 +200,7 @@ function HierParser() {
 
       if (!value || Array.isArray(value) || [null, undefined, ""].includes(value)) {
         if (Array.isArray(value)) {
-          value.map((item) => callback(item))
+          for (let item of value) callback(item)
         }
 
         text = text.replace(new RegExp(this.PLACEHOLDER), "")

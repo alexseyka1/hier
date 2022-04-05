@@ -1,6 +1,5 @@
 "use strict"
-var __DEV__ = false
-var __DEBUG__ = false
+var __PROFILING__ = true
 
 const { ast: html } = new HierParser()
 const { Component, BaseComponent, Util } = Hier
@@ -30,12 +29,6 @@ class Hello extends BaseComponent {
 }
 
 class LargeHeader extends BaseComponent {
-  afterMount() {
-    super.afterMount()
-    // fetch("https://jsonplaceholder.typicode.com/posts")
-    //   .then((response) => response.json())
-    //   .then((json) => console.log(json))
-  }
   render() {
     return html`<h1 className="red">${this.props.children}</h1>`
   }
@@ -50,7 +43,7 @@ class SmallHeader extends BaseComponent {
 class Dynamic extends Component {
   constructor(props) {
     super(props)
-    // this._state = { firstName: "Hello", lastName: "Dolly" }
+    this._state = { firstName: "Hello", lastName: "Dolly" }
   }
   render() {
     const { firstName, lastName } = this.state
