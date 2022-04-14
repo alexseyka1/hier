@@ -1,30 +1,18 @@
-class App extends Hier.Component {
-  constructor(props) {
-    super(props)
-    this._state = {
-      posts: [],
-      selectedPost: null,
-    }
-
-    this.onPostSelected = this.onPostSelected.bind(this)
-  }
-
-  afterMount() {
-    fetch("https://jsonplaceholder.typicode.com/posts")
-      .then((response) => response.json())
-      .then((posts) => this.setState({ posts }))
-  }
-
-  onPostSelected(post) {
-    this.setState({ selectedPost: post })
-  }
-
+class App extends Hier.BaseComponent {
   render() {
-    const { posts, selectedPost } = this.state
-    return html`<div class="main w-100">
-      <${Sidebar} posts=${posts} selectedPost=${selectedPost} onPostSelected=${this.onPostSelected} class="shadow-lg" />
-      <div class="b-example-divider"></div>
-      ${selectedPost ? html`<${PostView} post=${selectedPost} class="w-100" />` : null}
+    return html`<div class="main flex-column home-hero w-100">
+      <div class="scrollarea">
+        <${Navbar} class="navbar sticky-top d-flex justify-content-center container py-0" />
+        <${HashRouter} class="w-100">
+          <${HomePage} :route="/" />
+
+          <${PostsPage} :route="/posts" />
+          <${PostPage} :route="/post/:id" class="w-100" />
+
+          <${UsersPage} :route="/users" />
+          <${UserPage} :route="/user/:id" class="w-100" />
+        </HashRouter>
+      </div>
     </div>`
   }
 }

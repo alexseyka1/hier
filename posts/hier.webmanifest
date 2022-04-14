@@ -1,0 +1,9 @@
+{
+  "name": "Hier.js test application",
+  "short_name": "Hier.js",
+  "description": "Hier.js test application",
+  "start_url": "/posts/index.html",
+  "display": "fullscreen",
+  "theme_color": "#80deea",
+  "background_color": "#80deea"
+}

@@ -5,6 +5,7 @@
     <link rel="shortcut icon" href="#" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#80deea" />
     <title>Test Hier.js Rendering Library</title>
     <link
       rel="stylesheet"
@@ -20,6 +21,7 @@
       crossorigin="anonymous"
     />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="manifest" href="hier.webmanifest" />
   </head>
   <body>
     <div id="app"></div>
@@ -34,16 +36,30 @@
     <script src="../hier/hier-parser.js"></script>
     <script src="../hier/hier.js"></script>
 
-    <script src="./Base.js"></script>
-    <script src="./store.js"></script>
+    <script src="./database.js"></script>
+    <script src="./Services.js"></script>
+    <script src="./Helper.js"></script>
     <!-- Components-->
-    <script src="./components/Loader.js"></script>
-    <script src="./components/Sidebar.js"></script>
-    <script src="./components/post/PostListItem.js"></script>
-    <script src="./components/post/PostView.js"></script>
-    <script src="./components/Avatar.js"></script>
     <script src="./components/App.js"></script>
-    <script src="./components/StoreProvider.js"></script>
+    <script src="./components/Loader.js"></script>
+    <script src="./components/HashRouter.js"></script>
+    <script src="./components/Avatar.js"></script>
+    <script src="./components/Navbar.js"></script>
+
+    <script src="./components/post/PostListItem.js"></script>
+    <script src="./components/post/comments/CommentsList.js"></script>
+
+    <script src="./components/user/UserListItem.js"></script>
+    <script src="./components/user/UserName.js"></script>
+
+    <script src="./components/album/AlbumListItem.js"></script>
+
+    <!-- Pages -->
+    <script src="./pages/HomePage.js"></script>
+    <script src="./pages/PostsPage.js"></script>
+    <script src="./pages/PostPage.js"></script>
+    <script src="./pages/UsersPage.js"></script>
+    <script src="./pages/UserPage.js"></script>
 
     <!-- Index script -->
     <script src="./index.js"></script>

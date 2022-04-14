@@ -11,16 +11,14 @@ class PostListItem extends Hier.BaseComponent {
       if (typeof onSelect === "function") onSelect(post)
     }
 
-    return html`<a onClick=${(e) => onSelected(e, post)} href="#" key=${post.id} class=${classList}>
-      <div class="d-flex w-100 align-items-center justify-content-between">
-        <strong class="mb-1 sidebar-title__strong" title=${post.title}>${post.title}</strong>
-        <small class="text-muted">Mon</small>
+    const linkHref = `?#post/${post.id}`
+    return html`<a onClick=${(e) => onSelected(e, post)} href=${linkHref} key=${post.id} class=${classList}>
+      <div class="d-flex w-100 align-items-top justify-content-between">
+        <strong class="mb-1" title=${post.title}>${post.title}</strong>
+        <small class="opacity-25">#${post.id}</small>
       </div>
-      <div class="col-10 mb-1 small opacity-75">${post.body.substr(0, 80)}</div>
-      <div class="d-flex align-items-center">
-        <${Avatar} size="16" username=${post.userId} />
-        <small class="ms-2 text-secondary">Some User</small>
-      </div>
+      <div class="col-10 mb-1 small opacity-75">${post.body.repeat(10).substr(0, 200)}</div>
+      <${UserName} id=${post.userId} />
     </a>`
   }
 }
