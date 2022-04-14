@@ -1,12 +1,8 @@
 class PostsPage extends Hier.Component {
   POSTS_PER_PAGE = 20
-
-  constructor(props) {
-    super(props)
-    this._state = {
-      posts: [],
-      page: 1,
-    }
+  _state = {
+    posts: [],
+    page: 1,
   }
 
   onSelectPost(post) {

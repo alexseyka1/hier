@@ -1,9 +1,4 @@
-class AlbumListItem extends Hier.Component {
-  constructor(props) {
-    super(props)
-    this._state = {}
-  }
-
+class AlbumListItem extends Hier.BaseComponent {
   render() {
     const { album, onSelect } = this.props
     if (!album) return null

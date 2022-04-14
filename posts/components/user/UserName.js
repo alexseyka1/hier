@@ -1,8 +1,5 @@
 class UserName extends Hier.Component {
-  constructor(props) {
-    super(props)
-    this._state = { user: null }
-  }
+  _state = { user: null }
 
   afterMount() {
     const { id } = this.props

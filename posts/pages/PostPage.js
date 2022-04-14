@@ -1,8 +1,5 @@
 class PostPage extends Hier.Component {
-  constructor(props) {
-    super(props)
-    this._state = { post: null }
-  }
+  _state = { post: null }
 
   afterMount() {
     const { id } = this.props

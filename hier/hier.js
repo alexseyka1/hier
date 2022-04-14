@@ -626,7 +626,6 @@ const Hier = (function () {
 
     constructor(props) {
       super(props)
-      this._initChangeableAttr("_state")
 
       /** Initialisation state object */
       Object.defineProperty(this, "state", {
@@ -647,6 +646,10 @@ const Hier = (function () {
             )
           }
         },
+      })
+
+      this.addEventListener("afterCreate", () => {
+        Object.freeze(this._state)
       })
     }
 

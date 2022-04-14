@@ -1,7 +1,8 @@
 class HashRouter extends Hier.Component {
+  _state = { time: Date.now() }
+
   constructor(props) {
     super(props)
-    this._state = { time: Date.now() }
     this.onChangeUrl = this.onChangeUrl.bind(this)
   }
 

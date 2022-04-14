@@ -1,13 +1,9 @@
 class UserPage extends Hier.Component {
   MAX_POSTS = 3
-
-  constructor(props) {
-    super(props)
-    this._state = {
-      user: null,
-      posts: [],
-      albums: [],
-    }
+  _state = {
+    user: null,
+    posts: [],
+    albums: [],
   }
 
   afterMount() {
