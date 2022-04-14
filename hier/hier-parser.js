@@ -62,7 +62,7 @@ function HierParser() {
    */
   this.parseString = function (string, values) {
     const STATES = {
-      data: "date",
+      data: "data",
       tag: "tag",
     }
 
@@ -81,15 +81,20 @@ function HierParser() {
     }
 
     let state = STATES.data
-    let str = string
-    let loop = 0
+    let str = string.trim()
+    let prevStr
+    let hasNoChanges = 0
 
     while (str.length) {
-      if (++loop >= 1000) {
-        console.error("Parsing error. So much loops.", { state, str })
+      if (hasNoChanges > 3) {
+        console.error("Parsing error.", { state, str, prevStr })
         break
       }
 
+      if (prevStr === str) hasNoChanges++
+      else hasNoChanges = 0
+
+      prevStr = str
       switch (state) {
         case STATES.data:
           const dataMatched = str.match(/^[^<]+/)
@@ -105,7 +110,7 @@ function HierParser() {
           break
 
         case STATES.tag:
-          const closeMatched = str.match(/^<\/\w+.*>/)
+          const closeMatched = str.match(/^<\/\w+[^<]*>/)
           if (closeMatched) {
             str = str.slice(closeMatched.index + closeMatched[0].length)
             openedTagsStack.pop()
@@ -134,7 +139,7 @@ function HierParser() {
   }
 
   /**
-   * Parses string of HTML tag attributes
+   * Parses string of HTML tag  es
    * @inner
    * @param {string} str
    * @param {any[]} values placeholders list
@@ -145,13 +150,13 @@ function HierParser() {
     const matchNextProp = () => {
       return (
         /** Double quote */
-        str.match(/ \w+="(?:[^\\"])*"/) ||
+        str.match(/ :?[\w-]+="(?:[^\\"])*"/) ||
         /** Single quote */
-        str.match(/ \w+='(?:[^\\'])*'/) ||
+        str.match(/ :?[\w-]+='(?:[^\\'])*'/) ||
         /** Placeholder */
-        str.match(new RegExp(` *\\w+=${this.PLACEHOLDER}`)) ||
+        str.match(new RegExp(` *:?[\\w-]+=${this.PLACEHOLDER}`)) ||
         /** Any other */
-        str.match(/ *\w+/)
+        str.match(/ *:?[\w-]+/)
       )
     }
 
@@ -162,8 +167,16 @@ function HierParser() {
       key = key.trim()
 
       value = value.join("=")
-      if (value.match(new RegExp(`["']?${this.PLACEHOLDER}["']?`))) {
-        value = values.shift()
+
+      const localMatchRegexp = new RegExp(`["']?${this.PLACEHOLDER}["']?`)
+      const localMatch = value.match(localMatchRegexp)
+      if (localMatch) {
+        const _value = values.shift()
+        if (localMatch.index !== 0 && typeof _value !== "object") {
+          value = value.replace(this.PLACEHOLDER, _value).replace(/^["']/, "").replace(/["']$/, "")
+        } else {
+          value = _value
+        }
       } else {
         value = value ? value.slice(1, -1) : true
       }

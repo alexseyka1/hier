@@ -38,7 +38,8 @@ const Hier = (function () {
      * @returns {HTMLElement|Text}
      */
     createElement(tagName = isRequired(), attributes, children) {
-      if (tagName === "text") return document.createTextNode(attributes.value)
+      attributes = Hier._clearAttributes(attributes)
+      if (tagName === "text") return document.createTextNode(Util.decodeEntity(attributes.value.toString().trim()))
       const element = document.createElement(tagName)
 
       if (typeof attributes === "object") Hier._setNodeAttributes(element, attributes)
@@ -50,6 +51,42 @@ const Hier = (function () {
         }
       }
       return element
+    },
+
+    /**
+     * Cleans element attributes from internal :properties
+     * @param {object} attributes
+     * @returns {object}
+     */
+    _clearAttributes(attributes) {
+      const response = {}
+      for (let attr in attributes) {
+        if (/^:/.test(attr)) continue
+        response[attr] = attributes[attr]
+      }
+      return response
+    },
+
+    /**
+     * Cleans component property names
+     * @param {object} props
+     * @returns {object}
+     */
+    _clearProps(props) {
+      const response = {}
+      for (let prop in props) {
+        const propName = prop.replace(/^:/, "")
+        response[propName] = props[prop]
+      }
+      return response
+    },
+
+    /**
+     * Creates reference to HTML element
+     * @returns {HierRef}
+     */
+    createRef() {
+      return new HierRef()
     },
 
     /**
@@ -72,6 +109,11 @@ const Hier = (function () {
       if (!Object.keys(attributes).length) return
       const objectEntries = Object.entries(attributes || {})
       for (let [attribute, value] of objectEntries) {
+        if (attribute === "ref" && value instanceof HierRef) {
+          value.elem = node
+          continue
+        }
+
         if (typeof value !== "string" && typeof value !== "function") continue
         if (attribute.startsWith("on")) node[attribute.toLowerCase()] = value
         else {
@@ -86,7 +128,10 @@ const Hier = (function () {
      * @param {BaseComponent} component
      */
     _mountComponents(component = isRequired()) {
-      if (component instanceof BaseComponent) component.afterMount()
+      if (component instanceof BaseComponent && !component.isMounted) {
+        component.afterMount()
+        component.isMounted = true
+      }
 
       if (component.children && Array.isArray(component.children)) {
         for (child of component.children) Hier._mountComponents(child)
@@ -117,6 +162,7 @@ const Hier = (function () {
           const renderedChildren = new Array(clonedChildren.length)
           for (let childIndex in clonedChildren) {
             renderedChildren[childIndex] = Hier._renderAstObject(clonedChildren[childIndex], object.node)
+            Hier._mountComponents(renderedChildren[childIndex])
           }
           object.children = renderedChildren
           /** Free memory */
@@ -126,10 +172,9 @@ const Hier = (function () {
         return object
       } else {
         /** Current object is a component */
-        const props = Object.assign({}, Util.cloneObject(object.props), { children: object.children })
-        const nestedComponent = Hier.render(object.tagName, null, props)
+        const props = Object.assign({}, object.props, { children: object.children })
+        const nestedComponent = Hier.render(object instanceof BaseComponent ? object : object.tagName, node, props)
         if (rootNode) nestedComponent.afterCreated()
-        node.appendChild(nestedComponent.node)
 
         /** Free memory */
         free(props, nestedComponent)
@@ -156,8 +201,7 @@ const Hier = (function () {
         if (rootNode) component.afterCreated()
       }
 
-      const ast = component.render()
-      if (!ast) return component
+      const ast = component.render() ?? []
 
       isDev() && console.debug(`%c[Rendered][${componentName}]`, LogStyles.success, component, ast)
 
@@ -204,6 +248,7 @@ const Hier = (function () {
         if (typeof currentChildren === "undefined") currentChildren = []
         if (typeof newChildren === "undefined") newChildren = []
 
+        let doPopsCount = 0
         const maxChildrenCount = Math.max(currentChildren.length, newChildren.length)
         for (let index = 0; index < maxChildrenCount; index++) {
           const currentElement = currentChildren[index]
@@ -215,11 +260,11 @@ const Hier = (function () {
              * [done] New element will be added
              */
             innerComponent.children.push(newElement)
-
             innerComponent.node.appendChild(newElement.node)
+
             if (newElement instanceof BaseComponent) {
               isDev() && console.debug("%c + [New component added]", LogStyles.light, newElement)
-              newElement.afterMount()
+              Hier._mountComponents(newElement)
             } else {
               isDev() && console.debug("%c + [New element added]", LogStyles.light, newElement)
             }
@@ -229,11 +274,8 @@ const Hier = (function () {
              */
             if (currentElement instanceof BaseComponent) {
               currentElement.beforeUnmount()
-              /** Free memory */
-              Hier._deleteUnnecessaryNode(currentElement.node)
-              free(currentElement.node)
             }
-            innerComponent.children.pop()
+            doPopsCount++
             /** Free memory */
             Hier._deleteUnnecessaryNode(currentElement.node)
             free(currentElement.node, currentElement)
@@ -284,7 +326,7 @@ const Hier = (function () {
                 innerComponent.children[index] = newElement
 
                 currentElement.node.replaceWith(newElement.node)
-                newElement.afterMount()
+                Hier._mountComponents(newElement)
                 /** Free memory */
                 Hier._deleteUnnecessaryNode(currentElement.node)
                 free(currentElement.node)
@@ -294,7 +336,7 @@ const Hier = (function () {
               if (Util.jsonSerialize(currentElement.props) !== Util.jsonSerialize(newElement.props)) {
                 if (currentElement.tagName === "text") {
                   /** [done] If both elements are text strings */
-                  currentElement.node.nodeValue = newElement.props.value
+                  currentElement.node.nodeValue = Util.decodeEntity(newElement.props.value).trim()
                   isDev() &&
                     console.debug(
                       "%c <T> [Text changed]",
@@ -315,12 +357,10 @@ const Hier = (function () {
                     )
                 }
                 currentElement.props = Util.cloneObject(newElement.props)
-                if (currentChildren.node) {
-                  Hier._setNodeAttributes(currentChildren.node, newElement.props)
-                }
 
                 /** Free memory */
-                Hier._deleteUnnecessaryNode(newElement.node)
+                /** Here may me bug! */
+                // Hier._deleteUnnecessaryNode(newElement.node)
                 free(newElement.node, newElement)
               }
 
@@ -341,7 +381,7 @@ const Hier = (function () {
                 console.debug("%c <-> [Element replaced by component]", LogStyles.warning, currentElement, newElement)
               innerComponent.children[index] = newElement
               currentElement.node.replaceWith(newElement.node)
-              newElement.afterMount()
+              Hier._mountComponents(newElement)
               /** Free memory */
               Hier._deleteUnnecessaryNode(currentElement.node)
               free(currentElement.node)
@@ -352,7 +392,7 @@ const Hier = (function () {
               currentElement.beforeUnmount()
               innerComponent.children[index] = newElement
               currentElement.node.replaceWith(newElement.node)
-              // /** Free memory */
+              /** Free memory */
               Hier._deleteUnnecessaryNode(currentElement.node)
               free(currentElement.node)
             } else if (
@@ -364,7 +404,6 @@ const Hier = (function () {
               isDev() &&
                 console.debug("%c <-> [Element replaced by another one]", LogStyles.warning, currentElement, newElement)
               innerComponent.children[index] = newElement
-
               currentElement.node.replaceWith(newElement.node)
               /** Free memory */
               Hier._deleteUnnecessaryNode(currentElement.node)
@@ -377,10 +416,14 @@ const Hier = (function () {
           /** Free memory */
           free(currentElement, newElement, index)
         }
+
+        /** Delete unnecessary element children */
+        if (doPopsCount) {
+          for (let i = 0; i < doPopsCount; i++) innerComponent.children.pop()
+        }
       }
 
-      const ast = component.render()
-      if (!ast) return
+      const ast = component.render() ?? []
 
       const _currentChildren = component.children || []
       const tempNode = Hier.createElement("template")
@@ -467,6 +510,20 @@ const Hier = (function () {
       }
       return result
     },
+
+    /**
+     * Decodes HTML entities like `&nbsp;` or `&mdash;`
+     * @param {string} string
+     * @returns {string} Decoded HTML entities
+     */
+    decodeEntity(string) {
+      const textarea = Hier.createElement("textarea")
+      textarea.innerHTML = string
+      const response = textarea.value
+      Hier._deleteUnnecessaryNode(textarea)
+      free(textarea)
+      return response
+    },
   }
 
   /**
@@ -477,6 +534,7 @@ const Hier = (function () {
     props = {}
     children = []
     node = null
+    isMounted = false
 
     /**
      * @constructor
@@ -486,7 +544,7 @@ const Hier = (function () {
     constructor(props) {
       if (props && typeof props !== "object") throw new TypeError("Please specify correct props object.")
       this._initChangeableAttr("_props")
-      this._props = props || {}
+      this._props = Hier._clearProps(props) || {}
 
       /** Initialisation props object */
       Object.defineProperty(this, "props", {
@@ -496,6 +554,7 @@ const Hier = (function () {
           return this._props || {}
         },
         set: (currentValue) => {
+          currentValue = Hier._clearProps(currentValue)
           const prevProps = Util.cloneObject(this._props)
           if (Util.jsonSerialize(prevProps) != Util.jsonSerialize(currentValue)) {
             this._props = currentValue
@@ -506,7 +565,9 @@ const Hier = (function () {
       })
 
       /** Create component root node for mounting */
-      this.node = Hier.createElement("main", Object.assign({ "data-component": this.constructor.name }, props))
+      const elementAttributes = {}
+      if (isDev()) elementAttributes["data-component"] = this.constructor.name
+      this.node = Hier.createElement("main", Object.assign(elementAttributes, props))
     }
 
     afterCreated() {
@@ -594,8 +655,13 @@ const Hier = (function () {
     }
   }
 
+  class HierRef {
+    elem = null
+  }
+
   return {
     createElement: Hier.createElement,
+    createRef: Hier.createRef,
     render: Hier.render,
     BaseComponent,
     Component,
