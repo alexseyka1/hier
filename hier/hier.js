@@ -124,12 +124,12 @@ const Hier = (function () {
     },
 
     /**
-     * Calls afterMount() method for specified component and all his children components
+     * Dispatch `afterMount` event for specified component and all his children components
      * @param {BaseComponent} component
      */
     _mountComponents(component = isRequired()) {
       if (component instanceof BaseComponent && !component.isMounted) {
-        component.afterMount()
+        component.dispatchEvent(new Event("afterMount"))
         component.isMounted = true
       }
 
@@ -174,7 +174,7 @@ const Hier = (function () {
         /** Current object is a component */
         const props = Object.assign({}, object.props, { children: object.children })
         const nestedComponent = Hier.render(object instanceof BaseComponent ? object : object.tagName, node, props)
-        if (rootNode) nestedComponent.afterCreated()
+        if (rootNode) nestedComponent.dispatchEvent(new Event("afterCreate"))
 
         /** Free memory */
         free(props, nestedComponent)
@@ -198,7 +198,7 @@ const Hier = (function () {
       if (className instanceof BaseComponent) component = className
       else {
         component = new className(props)
-        if (rootNode) component.afterCreated()
+        if (rootNode) component.dispatchEvent(new Event("afterCreate"))
       }
 
       const ast = component.render() ?? []
@@ -273,7 +273,7 @@ const Hier = (function () {
              * [done] Some element has been removed
              */
             if (currentElement instanceof BaseComponent) {
-              currentElement.beforeUnmount()
+              currentElement.dispatchEvent(new Event("beforeUnmount"))
             }
             doPopsCount++
             /** Free memory */
@@ -321,7 +321,7 @@ const Hier = (function () {
                 /** [done] Current component has been replaced by another one */
                 isDev() &&
                   console.debug("%c <=> [Component replaced]", LogStyles.base, currentElement, " -> ", newElement)
-                currentElement.beforeUnmount()
+                currentElement.dispatchEvent(new Event("beforeUnmount"))
 
                 innerComponent.children[index] = newElement
 
@@ -389,7 +389,7 @@ const Hier = (function () {
               /** [done] Component has been replaced by common HTML tag */
               isDev() &&
                 console.debug("%c <-> [Component replaced by element]", LogStyles.warning, currentElement, newElement)
-              currentElement.beforeUnmount()
+              currentElement.dispatchEvent(new Event("beforeUnmount"))
               innerComponent.children[index] = newElement
               currentElement.node.replaceWith(newElement.node)
               /** Free memory */
@@ -529,7 +529,7 @@ const Hier = (function () {
   /**
    * Hier components
    */
-  class BaseComponent {
+  class BaseComponent extends EventTarget {
     _props = {}
     props = {}
     children = []
@@ -542,6 +542,7 @@ const Hier = (function () {
      * @throws {TypeError}
      */
     constructor(props) {
+      super()
       if (props && typeof props !== "object") throw new TypeError("Please specify correct props object.")
       this._initChangeableAttr("_props")
       this._props = Hier._clearProps(props) || {}
@@ -559,31 +560,40 @@ const Hier = (function () {
           if (Util.jsonSerialize(prevProps) != Util.jsonSerialize(currentValue)) {
             this._props = currentValue
             Hier.rerenderComponent(this)
-            this.afterUpdate(currentValue, prevProps)
+            this.dispatchEvent(new CustomEvent("afterUpdate", { detail: { props: currentValue, prevProps } }))
           }
         },
+      })
+
+      /** Init life-time event listeners */
+      this.addEventListener("afterCreate", () => {
+        isDebug() && console.debug(`⭐️ %c[Created] [${this.constructor.name}]`, LogStyles.light)
+        if (typeof this.afterCreate === "function") this.afterCreate.call(this)
+      })
+      this.addEventListener("afterMount", () => {
+        isDebug() && console.debug(`✅ %c[Mounted] [${this.constructor.name}]`, LogStyles.light)
+        if (typeof this.afterMount === "function") this.afterMount.call(this)
+      })
+      this.addEventListener("afterUpdate", (event) => {
+        const { props, prevProps, state, prevState } = event.detail
+        isDebug() &&
+          console.debug(`🔄 %c[Updated] [${this.constructor.name}]`, LogStyles.light, {
+            props,
+            prevProps,
+            state,
+            prevState,
+          })
+        if (typeof this.afterUpdate === "function") this.afterUpdate.call(this, props, prevProps, state, prevState)
+      })
+      this.addEventListener("beforeUnmount", () => {
+        isDebug() && console.debug(`⛔️ %c[Unmounted] [${this.constructor.name}]`, LogStyles.light)
+        if (typeof this.beforeUnmount === "function") this.beforeUnmount.call(this)
       })
 
       /** Create component root node for mounting */
       const elementAttributes = {}
       if (isDev()) elementAttributes["data-component"] = this.constructor.name
       this.node = Hier.createElement("main", Object.assign(elementAttributes, props))
-    }
-
-    afterCreated() {
-      isDebug() && console.debug(`⭐️ %c[Created] [${this.constructor.name}]`, LogStyles.light)
-    }
-
-    afterMount() {
-      isDebug() && console.debug(`✅ %c[Mounted] [${this.constructor.name}]`, LogStyles.light)
-    }
-
-    beforeUnmount() {
-      isDebug() && console.debug(`⛔️ %c[Unmounted] [${this.constructor.name}]`, LogStyles.light)
-    }
-
-    afterUpdate(props, prevProps) {
-      isDebug() && console.debug(`🔄 %c[Updated] [${this.constructor.name}]`, LogStyles.light, { props, prevProps })
     }
 
     /**
@@ -630,20 +640,14 @@ const Hier = (function () {
           if (Util.jsonSerialize(prevState) != Util.jsonSerialize(currentValue)) {
             this._state = currentValue
             Hier.rerenderComponent(this)
-            this.afterUpdate(this._props, this._props, currentValue, prevState)
+            this.dispatchEvent(
+              new CustomEvent("afterUpdate", {
+                detail: { props: this._props, prevProps: this._props, state: currentValue, prevState },
+              })
+            )
           }
         },
       })
-    }
-
-    afterUpdate(props, prevProps, state, prevState) {
-      isDebug() &&
-        console.debug(`🔄 %c[Updated] [${this.constructor.name}]`, LogStyles.light, {
-          props,
-          prevProps,
-          state,
-          prevState,
-        })
     }
 
     /**

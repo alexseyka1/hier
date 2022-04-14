@@ -18,7 +18,7 @@ class UserListItem extends Hier.BaseComponent {
         <div class="ms-3 w-100">
           <div class="d-flex w-100 align-items-center justify-content-between">
             <strong class="mb-1">${user.name}</strong>
-            <small>#${user.id}</small>
+            <small class="opacity-25">#${user.id}</small>
           </div>
           <div class="col-10 mb-1 small opacity-75">${user.email}</div>
         </div>

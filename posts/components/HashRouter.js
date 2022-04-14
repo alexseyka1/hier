@@ -37,6 +37,8 @@ class HashRouter extends Hier.Component {
       }
     }
 
-    return
+    return html`<div class="container d-flex justify-content-center p-3">
+      <h1 class="opacity-50">Page not found</h1>
+    </div>`
   }
 }

@@ -68,7 +68,7 @@ const Services = (function () {
         body,
         user: {
           ...user,
-          avatarUrl: `https://i.pravatar.cc/64?u=${user.id}`,
+          avatarUrl: `https://i.pravatar.cc/128?u=${user.id}`,
         },
       }
 
@@ -105,7 +105,7 @@ const Services = (function () {
       const user = store.users.get(id)
       const userData = {
         ...user,
-        avatarUrl: `https://i.pravatar.cc/256?u=${user.id}`,
+        avatarUrl: `https://i.pravatar.cc/512?u=${user.id}`,
       }
 
       return simulateDownloadingDelay(userData)

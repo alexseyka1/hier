@@ -26,7 +26,7 @@ class CommentsList extends Hier.Component {
     return html`<div class="p-3 mt-3 bg-light shadow-sm border-bottom">
         <h5 class="m-0 text-secondary">
           Comments
-          <span class="badge bg-secondary ms-2">${comments.length}</span>
+          <span class="badge rounded-pill bg-secondary ms-2">${comments.length}</span>
         </h5>
       </div>
       <div class="comments-list">

@@ -1,12 +1,8 @@
 class UsersPage extends Hier.Component {
   USERS_PER_PAGE = 20
-
-  constructor(props) {
-    super(props)
-    this._state = {
-      users: [],
-      page: 1,
-    }
+  _state = {
+    users: [],
+    page: 1,
   }
 
   onSelectUser(user) {
