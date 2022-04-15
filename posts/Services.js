@@ -13,7 +13,7 @@ const Services = (function () {
   const simulateDownloadingDelay = (response, delayMs = 250) => {
     return new Promise((resolve) => {
       const randomDelay = getRandomInt(delayMs / 2, delayMs * 2)
-      setTimeout(() => resolve(response), 0 /*randomDelay*/)
+      setTimeout(() => resolve(response), randomDelay)
     })
   }
 

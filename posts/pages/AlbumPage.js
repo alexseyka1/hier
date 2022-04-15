@@ -27,7 +27,7 @@ class AlbumPage extends Hier.Component {
   getUserBlock(userId) {
     if (!userId) return
 
-    return html`<a href="?#user/${userId}" class="btn d-block rounded-0 p-0 border-0"
+    return html`<a href="?#user/${userId}" class="btn d-block rounded-0 p-0 border-0 text-start"
       ><h5 class="m-0 px-3 py-3 bg-light border-bottom">
         <${UserName} id=${userId} avatarSize="48" /></h5
     ></a>`
