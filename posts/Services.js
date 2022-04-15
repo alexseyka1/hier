@@ -3,6 +3,8 @@ const Services = (function () {
     posts: new Map(),
     users: new Map(),
     comments: new Map(),
+    albums: new Map(),
+    photos: new Map(),
   }
   let usersLoaded
 
@@ -11,32 +13,22 @@ const Services = (function () {
   const simulateDownloadingDelay = (response, delayMs = 250) => {
     return new Promise((resolve) => {
       const randomDelay = getRandomInt(delayMs / 2, delayMs * 2)
-      setTimeout(() => resolve(response), randomDelay)
+      setTimeout(() => resolve(response), 0 /*randomDelay*/)
     })
   }
 
+  /**
+   * Posts
+   */
   const fetchPosts = async () => {
     return simulateDownloadingDelay(Database.posts)
   }
+
   const fetchPost = async (id) => {
     for (let post of Database.posts) {
       if (+post.id === +id) return simulateDownloadingDelay(post)
     }
     return null
-  }
-  const fetchUser = async (id) => {
-    if (!id) return simulateDownloadingDelay(Database.users)
-    for (let user of Database.users) {
-      if (+user.id === +id) return simulateDownloadingDelay(user)
-    }
-    return null
-  }
-  const fetchComments = async (postId) => {
-    const response = Database.comments.filter((comment) => +comment.postId === +postId)
-    return simulateDownloadingDelay(response)
-  }
-  const fetchAlbums = async () => {
-    return simulateDownloadingDelay(Database.albums)
   }
 
   const _getAllPosts = async () => {
@@ -82,6 +74,17 @@ const Services = (function () {
     },
   }
 
+  /**
+   * Users
+   */
+  const fetchUser = async (id) => {
+    if (!id) return simulateDownloadingDelay(Database.users)
+    for (let user of Database.users) {
+      if (+user.id === +id) return simulateDownloadingDelay(user)
+    }
+    return null
+  }
+
   const users = {
     getUsers: async () => {
       if (!usersLoaded) {
@@ -112,6 +115,14 @@ const Services = (function () {
     },
   }
 
+  /**
+   * Comments
+   */
+  const fetchComments = async (postId) => {
+    const response = Database.comments.filter((comment) => +comment.postId === +postId)
+    return simulateDownloadingDelay(response)
+  }
+
   const comments = {
     getComments: async (postId) => {
       if (!store.comments.has(postId)) {
@@ -122,11 +133,71 @@ const Services = (function () {
     },
   }
 
+  /**
+   * Albums
+   */
+  const fetchAlbums = async () => {
+    return simulateDownloadingDelay(Database.albums)
+  }
+
+  const fetchAlbum = async (id) => {
+    for (let album of await fetchAlbums()) {
+      if (+album.id === +id) return simulateDownloadingDelay(album)
+    }
+    return null
+  }
+
+  const _getAllAlbums = async () => {
+    if (!store.albums.size) {
+      const fetchedList = await fetchAlbums()
+      for (let album of fetchedList) {
+        store.albums.set(+album.id, album)
+      }
+    }
+
+    return Array.from(store.albums.values()).sort((a, b) => a.id - b.id)
+  }
+
   const albums = {
+    getAlbums: _getAllAlbums,
+
     getAlbumsByUser: async (id) => {
       const albums = await fetchAlbums()
       const response = albums.filter((album) => +album.userId === +id)
       return simulateDownloadingDelay(response)
+    },
+
+    getAlbum: async (id) => {
+      id = +id
+      if (!store.albums.size) setTimeout(() => albums.getAlbums())
+      if (!store.albums.has(id)) {
+        store.albums.set(id, await fetchAlbum(id))
+      }
+
+      const albumData = store.albums.get(id)
+      return simulateDownloadingDelay(albumData)
+    },
+  }
+
+  /**
+   * Photos
+   */
+  const fetchPhotos = async () => {
+    return simulateDownloadingDelay(Database.photos)
+  }
+  const fetchPhotosOfAlbum = async (id) => {
+    return (await fetchPhotos()).filter((photo) => +photo.albumId === +id)
+  }
+
+  const photos = {
+    getAlbumPhotos: async (albumId) => {
+      albumId = +albumId
+      if (!store.photos.has(albumId)) {
+        store.photos.set(albumId, await fetchPhotosOfAlbum(albumId))
+      }
+
+      const photosData = store.photos.get(albumId)
+      return simulateDownloadingDelay(photosData)
     },
   }
 
@@ -135,5 +206,6 @@ const Services = (function () {
     users,
     comments,
     albums,
+    photos,
   }
 })()

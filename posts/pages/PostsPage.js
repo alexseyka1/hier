@@ -42,9 +42,10 @@ class PostsPage extends Hier.Component {
     const { userId } = Helper.queryParams.fromString()
     if (!userId) return
 
-    return html`<h5 class="m-0 px-3 py-3 bg-light border-bottom">
-      <${UserName} id=${userId} avatarSize="48" />
-    </h5>`
+    return html`<a href="?#user/${userId}" class="btn d-block rounded-0 p-0 border-0"
+      ><h5 class="m-0 px-3 py-3 bg-light border-bottom">
+        <${UserName} id=${userId} avatarSize="48" /></h5
+    ></a>`
   }
 
   getPosts() {

@@ -18,9 +18,11 @@ class UserPage extends Hier.Component {
     Services.albums.getAlbumsByUser(id).then((albums) => this.setState({ albums }))
   }
 
-  afterUpdate() {
+  afterUpdate(props, prevProps) {
+    if (+props.id === +prevProps.id) return
+
     const { id } = this.props
-    if (!id) this.setState({ user: null })
+    if (!id) this.setState({ user: null, posts: [], albums: [] })
     this.fetchUser(id)
   }
 
@@ -58,6 +60,10 @@ class UserPage extends Hier.Component {
       ${content}`
   }
 
+  onSelectAlbum(album) {
+    window.location.hash = `album/${album.id}`
+  }
+
   getAlbumsBlock() {
     const { albums = [] } = this.state
 
@@ -66,7 +72,10 @@ class UserPage extends Hier.Component {
       content = html`<${Loader} />`
     } else {
       content = html`<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-3 p-3">
-        ${albums.map((album) => html`<${AlbumListItem} class="col" album=${album} />`)}
+        ${albums.map(
+          (album) =>
+            html`<${AlbumListItem} class="col" album=${album} onSelect=${(album) => this.onSelectAlbum(album)} />`
+        )}
       </div>`
     }
 

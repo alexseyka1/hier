@@ -12,7 +12,7 @@ class UserListItem extends Hier.BaseComponent {
     }
 
     const linkHref = `?#user/${user.id}`
-    return html`<a onClick=${(e) => onSelected(e, user)} href=${linkHref} key=${user.id} class=${classList}>
+    return html`<a onClick=${(e) => onSelected(e, user)} href=${linkHref} :key=${user.id} class=${classList}>
       <div class="d-flex">
         <${Avatar} size="40" username=${user.id} />
         <div class="ms-3 w-100">

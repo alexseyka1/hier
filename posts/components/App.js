@@ -11,6 +11,8 @@ class App extends Hier.BaseComponent {
 
           <${UsersPage} :route="/users" />
           <${UserPage} :route="/user/:id" />
+
+          <${AlbumPage} :route="/album/:id" />
         </HashRouter>
       </div>
     </div>`
