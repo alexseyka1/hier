@@ -146,43 +146,79 @@ function HierParser() {
    * @returns {object} HTML tag attributes, properties
    */
   this.parseProps = function (str, values) {
-    str = " " + str.trim()
+    str = str.trim()
+
+    let props = {}
+    const bothPlaceholdersRegexp = new RegExp(`^${this.PLACEHOLDER}=(["'])?${this.PLACEHOLDER}\\1?`),
+      justPlaceholderRegexp = new RegExp(`^${this.PLACEHOLDER}[\\s|\\/]`),
+      attrPlaceholderRegexp = new RegExp(`^:?${this.PLACEHOLDER}=(["'])?(?:[^\\"])*\\1?`),
+      valuePlaceholderRegexp = new RegExp(`^:?[\\w-]+=["']?${this.PLACEHOLDER}["']?`),
+      clearValue = (value) => value.replace(/^["']/, "").replace(/["']$/, "")
+
     const matchNextProp = () => {
       return (
-        /** Double quote */
-        str.match(/ :?[\w-]+="(?:[^\\"])*"/) ||
-        /** Single quote */
-        str.match(/ :?[\w-]+='(?:[^\\'])*'/) ||
-        /** Placeholder */
-        str.match(new RegExp(` *:?[\\w-]+=${this.PLACEHOLDER}`)) ||
+        /** Both attribute name and value are placeholders */
+        str.match(bothPlaceholdersRegexp) ||
+        /** Attribute name placeholder */
+        str.match(attrPlaceholderRegexp) ||
+        /** Attribute value placeholder */
+        str.match(valuePlaceholderRegexp) ||
+        /** Just placeholder */
+        str.match(justPlaceholderRegexp) ||
+        /** Common attribute */
+        str.match(/ :?[\w-]+=(["'])(?:[^\\"])*\1/) ||
         /** Any other */
         str.match(/ *:?[\w-]+/)
       )
     }
 
-    const props = {}
     let match
     while ((match = matchNextProp())) {
       let [key, ...value] = match[0].split("=")
       key = key.trim()
-
       value = value.join("=")
 
-      const localMatchRegexp = new RegExp(`["']?${this.PLACEHOLDER}["']?`)
-      const localMatch = value.match(localMatchRegexp)
-      if (localMatch) {
+      const valuePlaceholderMatch = str.match(valuePlaceholderRegexp)
+      if (str.match(bothPlaceholdersRegexp)) {
+        /**
+         * Both attribute name and value are placeholders
+         */
+        const _key = values.shift(),
+          _value = values.shift()
+        if (typeof _key === "string") props[_key] = _value
+      } else if (str.match(attrPlaceholderRegexp)) {
+        /**
+         * Attribute name placeholder
+         */
         const _value = values.shift()
-        if (localMatch.index !== 0 && typeof _value !== "object") {
-          value = value.replace(this.PLACEHOLDER, _value).replace(/^["']/, "").replace(/["']$/, "")
+        if (typeof _value !== "object") props[_value] = clearValue(value)
+      } else if (valuePlaceholderMatch) {
+        /**
+         * Variable was passed as attribute value
+         */
+        const _value = values.shift()
+        if (valuePlaceholderMatch.index !== 0 && typeof _value !== "object") {
+          value = clearValue(value.replace(this.PLACEHOLDER, _value))
         } else {
           value = _value
         }
+        props[key] = value
+      } else if (str.match(justPlaceholderRegexp)) {
+        /**
+         * Object with properties was passes as placeholder
+         */
+        const _value = values.shift()
+        if (typeof _value === "object") props = Object.assign({}, props, _value)
       } else {
+        /**
+         * Common element attribute
+         */
         value = value ? value.slice(1, -1) : true
+        props[key] = value
       }
 
-      props[key] = value
       str = str.slice(0, match.index) + str.slice(match.index + match[0].length)
+      str = str.trim()
     }
 
     return props
