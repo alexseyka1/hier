@@ -153,6 +153,7 @@ function HierParser() {
       justPlaceholderRegexp = new RegExp(`^${this.PLACEHOLDER}[\\s|\\/]`),
       attrPlaceholderRegexp = new RegExp(`^:?${this.PLACEHOLDER}=(["'])?(?:[^\\"])*\\1?`),
       valuePlaceholderRegexp = new RegExp(`^:?[\\w-]+=["']?${this.PLACEHOLDER}["']?`),
+      placeholderRegexp = new RegExp(`${this.PLACEHOLDER}`),
       clearValue = (value) => value.replace(/^["']/, "").replace(/["']$/, "")
 
     const matchNextProp = () => {
@@ -166,9 +167,9 @@ function HierParser() {
         /** Just placeholder */
         str.match(justPlaceholderRegexp) ||
         /** Common attribute */
-        str.match(/ :?[\w-]+=(["'])(?:[^\\"])*\1/) ||
+        str.match(/:?[\w-]+=(["'])(?:[^\\"])*\1/) ||
         /** Any other */
-        str.match(/ *:?[\w-]+/)
+        str.match(/:?[\w-]+/)
       )
     }
 
@@ -196,12 +197,7 @@ function HierParser() {
         /**
          * Variable was passed as attribute value
          */
-        const _value = values.shift()
-        if (valuePlaceholderMatch.index !== 0 && typeof _value !== "object") {
-          value = clearValue(value.replace(this.PLACEHOLDER, _value))
-        } else {
-          value = _value
-        }
+        value = values.shift()
         props[key] = value
       } else if (str.match(justPlaceholderRegexp)) {
         /**
@@ -213,6 +209,15 @@ function HierParser() {
         /**
          * Common element attribute
          */
+
+        /** Lets find and replace all placeholders */
+        let placeholderMatch
+        const placeholderNextMatch = () => (placeholderMatch = value.match(placeholderRegexp))
+        while ((placeholderMatch = placeholderNextMatch())) {
+          const _value = values.shift()
+          value = value.replace(placeholderRegexp, typeof _value !== "object" ? _value : "")
+        }
+
         value = value ? value.slice(1, -1) : true
         props[key] = value
       }
