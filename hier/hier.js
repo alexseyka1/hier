@@ -9,12 +9,20 @@ const Hier = (function () {
   function isRequired() {
     throw new Error("Required function argument not specified.")
   }
+  function objHasFunctions(obj) {
+    if (typeof obj !== "object" || !Object.keys(obj).length) return false
+    for (let prop of Object.values(obj)) {
+      if (typeof prop === "function") return true
+      else if (typeof prop === "object" && objHasFunctions(prop)) return true
+    }
+    return false
+  }
   /**
    * Resets specified variables and frees memory
    * @param  {...any} values
    */
   function free(...values) {
-    for (let value of values) value = null
+    for (let idx in values) values[idx] = null
   }
   const defaultLogStyles = [
     "color: #fff; background-color: #444; padding: 2px 4px; border-radius: 2px; margin-left: -4px",
@@ -110,7 +118,7 @@ const Hier = (function () {
       const objectEntries = Object.entries(attributes || {})
       for (let [attribute, value] of objectEntries) {
         if (attribute === "ref" && value instanceof HierRef) {
-          value.elem = node
+          value.setElem(node)
           continue
         }
 
@@ -333,7 +341,14 @@ const Hier = (function () {
               }
             } else if (currentElement.tagName === newElement.tagName) {
               /** [done] Both elements are equal common HTML elements (tags) */
-              if (Util.jsonSerialize(currentElement.props) !== Util.jsonSerialize(newElement.props)) {
+
+              /** Checking for props changed or element props contain some functions */
+              let isPropsHasFunctions = objHasFunctions(currentElement.props)
+              if (!isPropsHasFunctions) isPropsHasFunctions = objHasFunctions(newElement.props)
+
+              const isElementPropsChanged =
+                Util.jsonSerialize(currentElement.props) !== Util.jsonSerialize(newElement.props)
+              if (isElementPropsChanged || isPropsHasFunctions) {
                 if (currentElement.tagName === "text") {
                   /** [done] If both elements are text strings */
                   currentElement.node.nodeValue = Util.decodeEntity(newElement.props.value).trim()
@@ -346,7 +361,7 @@ const Hier = (function () {
                       Util.cloneObject(newElement)
                     )
                 } else {
-                  Hier._setNodeAttributes(currentElement.node, Util.getElementAttributes(newElement.node))
+                  Hier._setNodeAttributes(currentElement.node, this._clearAttributes(newElement.props))
                   isDev() &&
                     console.debug(
                       "%c <-> [Tag attributes replaced]",
@@ -360,7 +375,7 @@ const Hier = (function () {
 
                 /** Free memory */
                 /** Here may me bug! */
-                // Hier._deleteUnnecessaryNode(newElement.node)
+                Hier._deleteUnnecessaryNode(newElement.node)
                 free(newElement.node, newElement)
               }
 
@@ -450,7 +465,17 @@ const Hier = (function () {
      * @returns {string}
      */
     jsonSerialize: function (obj = isRequired(), prettyPrint) {
-      return JSON.stringify(obj, null, prettyPrint ? 2 : 0)
+      return JSON.stringify(
+        obj,
+        (key, value) => {
+          if (typeof value === "function") {
+            return value.toString()
+          } else {
+            return value
+          }
+        },
+        prettyPrint ? 2 : 0
+      )
     },
     /**
      * Depp clone any object
@@ -466,6 +491,8 @@ const Hier = (function () {
         newObj = newComponent
       } else if (obj instanceof Node) {
         newObj = obj.cloneNode()
+      } else if (obj instanceof HierRef) {
+        newObj = obj
       } else {
         newObj = Object.assign({}, obj || {})
       }
@@ -559,7 +586,11 @@ const Hier = (function () {
           const prevProps = Util.cloneObject(this._props)
           if (Util.jsonSerialize(prevProps) != Util.jsonSerialize(currentValue)) {
             this._props = currentValue
+
+            isProfiling() && console.time(`⏰ ${this.constructor.name} re-rendered in`)
             Hier.rerenderComponent(this)
+            isProfiling() && console.timeEnd(`⏰ ${this.constructor.name} re-rendered in`)
+
             this.dispatchEvent(new CustomEvent("afterUpdate", { detail: { props: currentValue, prevProps } }))
           }
         },
@@ -638,7 +669,11 @@ const Hier = (function () {
           const prevState = Util.cloneObject(this._state)
           if (Util.jsonSerialize(prevState) != Util.jsonSerialize(currentValue)) {
             this._state = currentValue
+
+            isProfiling() && console.time(`⏰ ${this.constructor.name} re-rendered in`)
             Hier.rerenderComponent(this)
+            isProfiling() && console.timeEnd(`⏰ ${this.constructor.name} re-rendered in`)
+
             this.dispatchEvent(
               new CustomEvent("afterUpdate", {
                 detail: { props: this._props, prevProps: this._props, state: currentValue, prevState },
@@ -663,13 +698,17 @@ const Hier = (function () {
   }
 
   class HierRef {
-    elem = null
+    elem
+    setElem(elem) {
+      this.elem = elem
+    }
   }
 
   return {
     createElement: Hier.createElement,
     createRef: Hier.createRef,
     render: Hier.render,
+    isRequired: isRequired,
     BaseComponent,
     Component,
   }

@@ -1,0 +1,124 @@
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;700&display=swap");
+* {
+  transition: all 0.25s ease-out;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  font-family: "Open Sans", sans-serif;
+}
+
+html {
+  height: -webkit-fill-available;
+}
+
+.main {
+  display: flex;
+  flex-wrap: nowrap;
+  height: 100vh;
+  height: -webkit-fill-available;
+  max-height: 100vh;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.scrollarea {
+  overflow-y: auto;
+}
+
+.home-hero {
+  position: relative;
+  min-height: 100vh;
+}
+.home-hero::before {
+  background: #80deea;
+  clip-path: polygon(0 0, 100% 0, 100% 59%, 0 30%);
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+}
+.home-hero:after {
+  background: #ffab91;
+  clip-path: polygon(0 100%, 100% 100%, 100% 63%, 0 34%);
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+}
+
+.glass-bg {
+  -webkit-backdrop-filter: blur(6px);
+  -moz-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  background-color: rgba(250, 250, 250, 0.85);
+}
+
+.btn-teal {
+  color: #fff;
+  background-color: #0097a7;
+}
+.btn.btn-teal:hover {
+  color: #fff;
+  background-color: #00838f;
+}
+
+.page-link {
+  color: #00bcd4;
+}
+.page-link:hover {
+  color: #00838f;
+}
+
+.btn-outline-primary {
+  border-color: #00bcd4;
+  color: #00bcd4;
+}
+.btn-outline-primary:hover {
+  border-color: #00bcd4;
+  background-color: #00bcd4;
+}
+
+::selection {
+  background: #ffab91;
+}
+::-moz-selection {
+  background: #ffab91;
+}
+
+.form-control:focus {
+  border-color: #00838f;
+  box-shadow: 0 0 0 0.25rem rgba(0, 131, 143, 0.25);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Sort list */
+.sort-list > .hint {
+  background: #feffb4;
+}
+.sort-list > .active {
+  background: #ffe7e7;
+}
+
+.sortable-ghost {
+  background-color: #80deea;
+}
