@@ -51,7 +51,7 @@ function HierParser() {
    * @param {string} value
    * @returns {object{tagName: string, props: object}}
    */
-  this._createTextAstObject = (value) => ({ tagName: "text", props: { value } })
+  this._createTextAstObject = (value) => ({ tagName: "textString", props: { value } })
 
   /**
    * Parses an HTML template string and returns AST
@@ -83,6 +83,7 @@ function HierParser() {
     let state = STATES.data
     let str = string.trim()
     let prevStr
+    let insideSvg
     let hasNoChanges = 0
 
     while (str.length) {
@@ -110,12 +111,14 @@ function HierParser() {
           break
 
         case STATES.tag:
-          const closeMatched = str.match(/^<\/\w+[^<]*>/)
+          const closeMatched = str.match(/^<\/[\w:]+[^<]*>/)
           if (closeMatched) {
             str = str.slice(closeMatched.index + closeMatched[0].length)
-            openedTagsStack.pop()
+            const _element = openedTagsStack.pop()
+            /** For SVG supporting */
+            if (_element.tagName === "svg") insideSvg = false
           } else {
-            const tagMatched = str.match(/<(?<tagName>\w+)[^\s\/>]*\s?(?<attributes>[^>]*)>/)
+            const tagMatched = str.match(/<(?<tagName>[\w:]+)[^\s\/>]*\s?(?<attributes>[^>]*)>/)
             if (tagMatched) {
               let {
                 groups: { tagName, attributes },
@@ -123,10 +126,14 @@ function HierParser() {
               tagName = this.parseTagName(tagName, values)
               const selfClosing = attributes.slice(-1) === "/"
               const props = this.parseProps(attributes, values)
-              const element = { tagName, props }
+              const element = { tagName: insideSvg ? `svg:${tagName}` : tagName, props }
               insertElementToTree(element)
 
-              if (!selfClosing) openedTagsStack.push(element)
+              if (!selfClosing) {
+                openedTagsStack.push(element)
+                /** For SVG supporting */
+                if (tagName === "svg") insideSvg = true
+              }
               str = str.slice(tagMatched.index + tagMatched[0].length)
             }
           }

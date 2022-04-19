@@ -47,8 +47,13 @@ const Hier = (function () {
      */
     createElement(tagName = isRequired(), attributes, children) {
       attributes = Hier._clearAttributes(attributes)
-      if (tagName === "text") return document.createTextNode(Util.decodeEntity(attributes.value.toString().trim()))
-      const element = document.createElement(tagName)
+      if (tagName === "textString")
+        return document.createTextNode(Util.decodeEntity(attributes.value.toString().trim()))
+
+      let element
+      if (tagName === "svg" || tagName.indexOf("svg:") === 0)
+        element = document.createElementNS("http://www.w3.org/2000/svg", tagName)
+      else element = document.createElement(tagName)
 
       if (typeof attributes === "object") Hier._setNodeAttributes(element, attributes)
 
@@ -155,7 +160,7 @@ const Hier = (function () {
       if (Array.isArray(object) && object.length === 1) object = object.pop()
 
       if (typeof object !== "object") {
-        const elementNode = Hier.createElement("text", { value: object })
+        const elementNode = Hier.createElement("textString", { value: object })
         node.appendChild(elementNode)
         /** Free memory */
         free(elementNode)
@@ -349,7 +354,7 @@ const Hier = (function () {
               const isElementPropsChanged =
                 Util.jsonSerialize(currentElement.props) !== Util.jsonSerialize(newElement.props)
               if (isElementPropsChanged || isPropsHasFunctions) {
-                if (currentElement.tagName === "text") {
+                if (currentElement.tagName === "textString") {
                   /** [done] If both elements are text strings */
                   currentElement.node.nodeValue = Util.decodeEntity(newElement.props.value).trim()
                   isDev() &&
