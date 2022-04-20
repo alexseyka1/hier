@@ -160,11 +160,11 @@ const Hier = (function () {
       if (Array.isArray(object) && object.length === 1) object = object.pop()
 
       if (typeof object !== "object") {
-        const elementNode = Hier.createElement("textString", { value: object })
+        const _object = { tagName: "textString", props: { value: object } }
+        const elementNode = Hier.createElement(_object.tagName, _object.props)
+        _object.node = elementNode
         node.appendChild(elementNode)
-        /** Free memory */
-        free(elementNode)
-        return object
+        return _object
       } else if (typeof object.tagName === "string") {
         /** Current object is a common HTML element */
         object.node = Hier.createElement(object.tagName, object.props)
@@ -443,7 +443,8 @@ const Hier = (function () {
         }
       }
 
-      const ast = component.render() ?? []
+      let ast = component.render() ?? []
+      if (!Array.isArray(ast)) ast = [ast]
 
       const _currentChildren = component.children || []
       const tempNode = Hier.createElement("template")

@@ -1,7 +1,7 @@
 class HomePage extends Hier.Component {
   render() {
     const code = html`<pre class="text-start p-3 rounded glass-bg home__code shadow">
-      <div>const { ast: html } = new HierParser()</div>
+      <div>const { ast: html } = HierParser</div>
       <div class="ps-4">
         class App extends Hier.BaseComponent {
         <div class="ps-4">
