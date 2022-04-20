@@ -4,7 +4,7 @@ const { ast: html } = HierParser
 
 class App extends Hier.BaseComponent {
   render() {
-    return html` <h1>Hello👋</h1> `
+    return html` <h2>Hello👋</h2> `
   }
 }
 

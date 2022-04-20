@@ -21,46 +21,45 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="w-100">
-      <section class="home-hero">
-        <div class="px-4 py-5 container">
-          <h1 class="display-1 fw-bold text-center">
-            Hier
-            <span class="fa-solid fs-1 fa-wand-sparkles"></span>
-          </h1>
-          <div class="col-lg-6 mx-auto">
-            <p class="lead mb-4 text-center">
-              A brand new JavaScript library that parses and renders components written in template literals really
-              fast. You don't need any build systems or framework anymore. Get started quickly.
-            </p>
+    <main class="main home-hero w-100">
+      <div class="px-4 py-5 container scrollarea">
+        <h1 class="display-1 fw-bold text-center">
+          Hier
+          <span class="fa-solid fs-1 fa-wand-sparkles"></span>
+        </h1>
+        <div class="col-lg-6 mx-auto">
+          <p class="lead mb-4 text-center">
+            A brand new JavaScript library that parses and renders components written in template literals really fast.
+            You don't need any build systems or framework anymore. Get started quickly.
+          </p>
 
-            <div class="d-flex flex-column flex-md-row mb-4 shadow">
-              <pre class="p-3 rounded-start glass-bg home__code w-100 m-0">
+          <div class="d-flex flex-column flex-md-row mb-4 shadow">
+            <pre class="p-3 rounded-start glass-bg code w-100 m-0">
 const { ast: html } = HierParser
 class App extends Hier.BaseComponent {
   render() {
-    return html` &lt;h1&gt;Hello👋&lt;/h1&gt; `
+    return html` &lt;h2&gt;Hello👋&lt;/h2&gt; `
   }
 }
 Hier.render(App, document.getElementById("app"))</pre
-              >
-              <div
-                class="glass-bg bg-white bg-opacity-25 rounded-end col-md-3 d-flex justify-content-center align-items-center"
-                style="min-height: 5rem"
-              >
-                <div id="app"></div>
-              </div>
-            </div>
-
-            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-              <a href="#getting-started" class="btn btn-teal btn-lg px-4 gap-3">Get started</a>
-              <a href="#getting-started" class="btn btn-outline-secondary btn-lg px-4">Show documentation</a>
+            >
+            <div
+              class="glass-bg bg-white bg-opacity-25 rounded-end col-md-3 d-flex justify-content-center align-items-center"
+              style="min-height: 5rem"
+            >
+              <div id="app"></div>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section id="getting-started">Hello</section>
+          <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            <a href="/docs/documentation" class="btn btn-teal btn-lg px-4 gap-3">Get started</a>
+            <a href="https://github.com/alexseyka1/hier" class="btn btn-outline-light btn-lg px-4">
+              <span class="fa-brands fa-github"></span>
+              We on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
     </main>
 
     <script
