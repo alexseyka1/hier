@@ -13,6 +13,17 @@ section {
   min-height: 100vh;
 }
 
+code {
+  color: #cf471c;
+}
+
+a {
+  color: #005b66;
+}
+a:hover {
+  color: #007a89;
+}
+
 .main {
   height: 100vh;
   height: -webkit-fill-available;
