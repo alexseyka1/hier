@@ -160,7 +160,8 @@ const Hier = (function () {
       if (Array.isArray(object) && object.length === 1) object = object.pop()
 
       if (typeof object !== "object") {
-        const _object = { tagName: "textString", props: { value: object } }
+        const value = typeof object.toString === "function" ? object.toString() : object
+        const _object = { tagName: "textString", props: { value } }
         const elementNode = Hier.createElement(_object.tagName, _object.props)
         _object.node = elementNode
         node.appendChild(elementNode)
@@ -214,7 +215,8 @@ const Hier = (function () {
         if (rootNode) component.dispatchEvent(new Event("afterCreate"))
       }
 
-      const ast = component.render() ?? []
+      let ast = component.render() ?? []
+      if (!Array.isArray(ast)) ast = [ast]
 
       isDev() && console.debug(`%c[Rendered][${componentName}]`, LogStyles.success, component, ast)
 

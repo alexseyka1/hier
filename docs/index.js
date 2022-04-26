@@ -2,12 +2,17 @@
 
 const { ast: html } = HierParser
 
-class App extends Hier.BaseComponent {
-  render() {
-    return html` <h2>Hello👋</h2> `
-  }
-}
+window.addEventListener("load", () => {
+  const codeBlocks = document.querySelectorAll("pre > code")
+  const worker = new Worker("code-worker.js")
+  codeBlocks.forEach((elem, index) => {
+    worker.postMessage({ text: elem.textContent, index })
+  })
 
-document.addEventListener("DOMContentLoaded", () => {
-  Hier.render(App, document.getElementById("app"))
+  worker.onmessage = (event) => {
+    const { result, index } = event.data
+    codeBlocks[index].innerHTML = result
+  }
 })
+
+document.addEventListener("DOMContentLoaded", () => {})
