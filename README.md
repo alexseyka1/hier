@@ -1,9 +1,8 @@
-# Hier
-📕 This is a JavaScript library that parses and renders components written in template literals really fast.
+<img width="1280" alt="hier-description" src="https://user-images.githubusercontent.com/2858470/165038325-59f8e6f5-9c98-4c92-99ec-7be3e0ab18b3.png">
 
-😎 You don't need any build systems or framework anymore. You can easily add some logic to your existing project written not on JavaScript (on PHP, for example). 
+⚡️ Invented as an alternative to existing libraries, allowing you to add new functionality to existing non-JavaScript projects without using build systems. The syntax of template literals is very simple and already familiar. So why not use all its power, right?
 
-⚡️ Get started quickly.
+[📕 Click here to read full documentation](https://alexseyka1.github.io/hier/docs)
 
 ## Simple example
 <pre>
@@ -105,4 +104,4 @@ class App extends React.Component {
 }
 </pre>
 
-✅ More examples with working applications you can find in `examples` folder
+[✅ More examples with working applications you can find in `examples` folder](https://github.com/alexseyka1/hier/tree/master/examples)
