@@ -2,7 +2,7 @@
 
 ⚡️ Invented as an alternative to existing libraries, allowing you to add new functionality to existing non-JavaScript projects without using build systems. The syntax of template literals is very simple and already familiar. So why not use all its power, right?
 
-[📕 Click here to read full documentation](https://alexseyka1.github.io/hier/documentation)
+[📕 Click here to read full documentation](https://alexseyka1.github.io/hier/docs)
 
 ## Simple example
 <pre>
